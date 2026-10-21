@@ -5,18 +5,28 @@ import { FooterNewsletter } from "./footer-newsletter";
 import { ThemeToggle } from "./theme-toggle";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { dbErrorText, ensureDemoCatalog } from "@/lib/ensure-catalog";
 import { ROLE_KEYS } from "@/lib/permissions";
 
-export async function StorefrontHeader() {
+async function loadHeader() {
+  const ready = await ensureDemoCatalog();
+  if (!ready) return { user: null, categories: [], cartCount: 0 };
   const user = await getSessionUser();
   const categories = await prisma.category.findMany({
     where: { enabled: true, parentId: null },
     orderBy: { sortOrder: "asc" },
     take: 24,
   });
-  const cartCount = user
-    ? await prisma.cartItem.count({ where: { cart: { userId: user.id } } })
-    : 0;
+  const cartCount = user ? await prisma.cartItem.count({ where: { cart: { userId: user.id } } }) : 0;
+  return { user, categories, cartCount };
+}
+
+export async function StorefrontHeader() {
+  const loaded = await loadHeader().catch((error) => {
+    console.error("Storefront header skipped the database:", dbErrorText(error));
+    return { user: null, categories: [], cartCount: 0 };
+  });
+  const { user, categories, cartCount } = loaded;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">

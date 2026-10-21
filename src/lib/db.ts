@@ -16,8 +16,10 @@ function client() {
 }
 
 export const prisma = new Proxy({} as PrismaClient, {
-  get(_target, prop, receiver) {
-    const value = Reflect.get(client(), prop, receiver);
-    return typeof value === "function" ? value.bind(client()) : value;
+  get(_target, prop) {
+    if (prop === "then") return undefined;
+    const real = client();
+    const value = Reflect.get(real, prop, real);
+    return typeof value === "function" ? value.bind(real) : value;
   },
 });

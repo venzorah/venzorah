@@ -5,6 +5,7 @@ import { HomeHero } from "@/components/home-hero";
 import { CategoryCarousel } from "@/components/category-carousel";
 import { getSetting } from "@/lib/settings";
 import { getSessionUser } from "@/lib/auth";
+import { dbErrorText, ensureDemoCatalog } from "@/lib/ensure-catalog";
 
 const FALLBACK_SLIDES = [
   {
@@ -33,9 +34,31 @@ const FALLBACK_SLIDES = [
   },
 ];
 
+function HomeFallback() {
+  return (
+    <main>
+      <HomeHero slides={FALLBACK_SLIDES} categories={[]} />
+      <section className="mx-auto max-w-7xl px-4 pb-16">
+        <h2 className="text-xl font-semibold tracking-tight text-ink">Products</h2>
+        <p className="mt-3 text-sm text-muted">The catalogue is not available yet. Reload in a moment.</p>
+      </section>
+    </main>
+  );
+}
+
 export default async function HomePage() {
-  const user = await getSessionUser();
-  const [tagline, banners, categories, products, wished] = await Promise.all([
+  const ready = await ensureDemoCatalog();
+  if (!ready) return <HomeFallback />;
+
+  let user;
+  let tagline;
+  let banners;
+  let categories;
+  let products;
+  let wished;
+  try {
+    user = await getSessionUser();
+    [tagline, banners, categories, products, wished] = await Promise.all([
     getSetting("tagline"),
     prisma.cmsBanner.findMany({ where: { enabled: true }, orderBy: { sortOrder: "asc" } }),
     prisma.category.findMany({
@@ -99,4 +122,8 @@ export default async function HomePage() {
       </section>
     </main>
   );
+  } catch (error) {
+    console.error("Homepage skipped the database:", dbErrorText(error));
+    return <HomeFallback />;
+  }
 }

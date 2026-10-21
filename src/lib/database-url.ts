@@ -58,6 +58,11 @@ export function findDatabaseUrl() {
   return null;
 }
 
+function withConnectTimeout(url: string) {
+  if (/[?&]connect_timeout=/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}connect_timeout=5`;
+}
+
 export function resolveDatabaseUrl() {
   const found = findDatabaseUrl();
   if (!found) {
@@ -65,5 +70,10 @@ export function resolveDatabaseUrl() {
       "A PostgreSQL URL is required. Set DATABASE_URL, or use a Vercel/Neon integration (POSTGRES_URL). Do not use a sqlite file: URL.",
     );
   }
-  return found.url;
+  if (process.env.VERCEL && isLocalPostgresUrl(found.url)) {
+    throw new Error(
+      "DATABASE_URL points at localhost. Vercel cannot reach that computer. Set a Neon or Vercel Postgres URI for Production and Preview.",
+    );
+  }
+  return process.env.VERCEL ? withConnectTimeout(found.url) : found.url;
 }

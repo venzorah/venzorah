@@ -2,6 +2,9 @@ import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/*": ["./prisma/sql/init.sql"],
+  },
   async rewrites() {
     return [{ source: "/admin/login", destination: "/admin-login" }];
   },
