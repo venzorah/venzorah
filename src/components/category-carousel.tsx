@@ -2,35 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { categoryLabel } from "@/lib/category-display";
 
 export type CategoryTile = {
   name: string;
   slug: string;
   image: string | null;
-};
-
-const SHORT_NAMES: Record<string, string> = {
-  "African Food and Groceries": "Food and groceries",
-  "Fashion and Clothing": "Fashion",
-  "Traditional and Cultural Wear": "Traditional wear",
-  "Bags and Accessories": "Bags",
-  "Beauty and Skincare": "Beauty",
-  "Hair Products and Hair Accessories": "Hair",
-  "Home and Living": "Home and living",
-  "Furniture and Furnishings": "Furniture",
-  "Art and Handmade Crafts": "Art and crafts",
-  "African Artwork and Decor": "Artwork and decor",
-  "Books and Educational Materials": "Books",
-  "Music and Entertainment Products": "Music",
-  "Electronics and Technology Accessories": "Electronics",
-  "Health and Personal Care Products": "Health and care",
-  "Agricultural Products and Supplies": "Agriculture",
-  "Kitchenware and Household Goods": "Kitchenware",
-  "Baby and Children's Products": "Baby and kids",
-  "Sports and Fitness": "Sports",
-  "Gifts and Souvenirs": "Gifts",
-  "Business and Office Supplies": "Office",
-  "Other Approved African Products": "More products",
 };
 
 export function CategoryCarousel({ items }: { items: CategoryTile[] }) {
@@ -105,7 +82,7 @@ export function CategoryCarousel({ items }: { items: CategoryTile[] }) {
                 )}
               </div>
               <p className="mt-2 text-center text-[13px] leading-snug text-ink">
-                {SHORT_NAMES[item.name] ?? item.name}
+                {categoryLabel(item.name)}
               </p>
             </Link>
           ))}
