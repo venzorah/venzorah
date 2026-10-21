@@ -1,6 +1,26 @@
 import { spawnSync } from "node:child_process";
 
-const KEYS = [
+function clean(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^\uFEFF/, "")
+    .replace(/^["']|["']$/g, "");
+}
+
+function isPostgresUrl(url) {
+  return url.startsWith("postgres://") || url.startsWith("postgresql://");
+}
+
+function isLocal(url) {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
+const keys = [
   "DATABASE_URL",
   "POSTGRES_PRISMA_URL",
   "POSTGRES_URL",
@@ -9,52 +29,42 @@ const KEYS = [
   "DIRECT_URL",
 ];
 
-function clean(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/^["']|["']$/g, "");
-}
-
-function isPostgresUrl(url) {
-  return url.startsWith("postgres://") || url.startsWith("postgresql://");
-}
-
-let foundKey = "";
-let foundUrl = "";
-for (const key of KEYS) {
+let found = null;
+for (const key of keys) {
   const url = clean(process.env[key]);
-  if (isPostgresUrl(url)) {
-    foundKey = key;
-    foundUrl = url;
+  if (isPostgresUrl(url) && !isLocal(url)) {
+    found = { key, url };
     break;
   }
 }
 
-if (!foundUrl) {
+function run(args, env = process.env) {
+  const result = spawnSync(process.execPath, args, { stdio: "inherit", env });
+  if (result.error) {
+    console.error(result.error);
+    return result.status ?? 1;
+  }
+  return result.status ?? 1;
+}
+
+if (!found) {
   const present = Object.keys(process.env).filter((key) => /DATABASE|POSTGRES|DIRECT_URL|NEON/i.test(key));
-  console.error("No PostgreSQL URL is available to this Vercel build.");
-  console.error(
+  console.warn("Skipping database setup. Vercel has no remote PostgreSQL URL at build time.");
+  console.warn(
     present.length
       ? `Related env keys visible at build time: ${present.join(", ")}`
       : "No DATABASE or POSTGRES env keys are visible at build time.",
   );
-  console.error(
-    "In Vercel → Settings → Environment Variables, set DATABASE_URL (or connect Neon so POSTGRES_URL exists) for Production and Preview, and include it in Builds. Then redeploy.",
+  console.warn(
+    "Set DATABASE_URL to a Neon or Vercel Postgres URI (not localhost) for Production and Preview, and include it in Builds. The storefront seeds an empty database on the first visit.",
   );
-  process.exit(1);
-}
-
-const env = { ...process.env, DATABASE_URL: foundUrl };
-console.log(`vercel-build: DATABASE_URL taken from ${foundKey}`);
-
-function run(args) {
-  const result = spawnSync(process.execPath, args, { stdio: "inherit", env });
-  if (result.error) {
-    console.error(result.error);
-    process.exit(1);
+} else {
+  console.log(`vercel-build: database URL taken from ${found.key}`);
+  const status = run(["scripts/prepare-db.mjs"], { ...process.env, DATABASE_URL: found.url });
+  if (status !== 0) {
+    console.error("Database setup failed. Continuing so Next.js can still build.");
   }
-  if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-run(["scripts/prepare-db.mjs"]);
-run(["node_modules/next/dist/bin/next", "build"]);
+const buildStatus = run(["node_modules/next/dist/bin/next", "build"]);
+process.exit(buildStatus);

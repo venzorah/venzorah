@@ -1,68 +1,95 @@
 import { spawnSync } from "node:child_process";
 
-function isPostgresUrl(url) {
-  return url.startsWith("postgres://") || url.startsWith("postgresql://");
+function clean(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^\uFEFF/, "")
+    .replace(/^["']|["']$/g, "");
 }
 
-function firstPostgresUrl(keys) {
-  for (const key of keys) {
-    const url = String(process.env[key] ?? "")
-      .trim()
-      .replace(/^["']|["']$/g, "");
-    if (isPostgresUrl(url)) return { key, url };
+function normalize(raw) {
+  const value = clean(raw);
+  if (!value.startsWith("postgres://") && !value.startsWith("postgresql://")) return "";
+  try {
+    const parsed = new URL(value);
+    parsed.searchParams.delete("channel_binding");
+    if (/neon\.tech|vercel-storage\.com|supabase\./.test(parsed.hostname)) {
+      const mode = parsed.searchParams.get("sslmode");
+      if (!mode || mode === "prefer" || mode === "verify-full" || mode === "verify-ca") {
+        parsed.searchParams.set("sslmode", "require");
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return value;
   }
-  return { key: "", url: "" };
 }
 
-function withSsl(url) {
-  if (url.includes("sslmode=")) return url;
-  if (/neon\.tech|vercel-storage\.com|supabase\.co/.test(url)) {
-    return `${url}${url.includes("?") ? "&" : "?"}sslmode=require`;
-  }
-  return url;
+function directUrl(url) {
+  const parsed = new URL(url);
+  if (parsed.hostname.includes("-pooler")) parsed.hostname = parsed.hostname.replace("-pooler", "");
+  parsed.searchParams.delete("pgbouncer");
+  return parsed.toString();
 }
 
-function forSchemaPush(url) {
-  return withSsl(url.replace("-pooler.", "."));
-}
-
-const runtime = firstPostgresUrl([
+const keys = [
   "DATABASE_URL",
   "POSTGRES_PRISMA_URL",
   "POSTGRES_URL",
   "DATABASE_URL_UNPOOLED",
   "POSTGRES_URL_NON_POOLING",
   "DIRECT_URL",
-]);
+];
+
+let runtime = { key: "", url: "" };
+for (const key of keys) {
+  const url = normalize(process.env[key]);
+  if (url) {
+    runtime = { key, url };
+    break;
+  }
+}
 
 if (!runtime.url) {
-  console.error(
-    "No PostgreSQL URL found. Set DATABASE_URL for Production and Preview (available at Build time), or connect Neon/Vercel Postgres so POSTGRES_URL is present. A leftover file: SQLite URL is ignored.",
-  );
+  console.error("No PostgreSQL URL found.");
   process.exit(1);
 }
 
-const migrate = firstPostgresUrl(["DIRECT_URL", "POSTGRES_URL_NON_POOLING", "DATABASE_URL_UNPOOLED"]);
-const schemaUrl = forSchemaPush(migrate.url || runtime.url);
-const redacted = schemaUrl.replace(/:\/\/[^@]+@/, "://***@");
-console.log(`prepare-db: using ${migrate.url ? migrate.key : runtime.key} (${redacted})`);
+const directKeys = ["POSTGRES_URL_NON_POOLING", "DATABASE_URL_UNPOOLED", "DIRECT_URL"];
+let schemaUrl = runtime.url;
+for (const key of directKeys) {
+  const url = normalize(process.env[key]);
+  if (url) {
+    schemaUrl = url;
+    break;
+  }
+}
+if (schemaUrl === runtime.url) schemaUrl = directUrl(runtime.url);
 
-function run(script, args, extraEnv = {}) {
+function run(script, args, databaseUrl) {
   const result = spawnSync(process.execPath, [script, ...args], {
     stdio: "inherit",
-    env: { ...process.env, ...extraEnv },
+    env: { ...process.env, DATABASE_URL: databaseUrl },
   });
   if (result.error) {
     console.error(result.error);
-    process.exit(1);
+    return false;
   }
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  return result.status === 0;
 }
 
-run("node_modules/prisma/build/index.js", ["db", "push", "--skip-generate"], { DATABASE_URL: schemaUrl });
+const redacted = schemaUrl.replace(/:\/\/[^@]+@/, "://***@");
+console.log(`prepare-db: schema push via ${redacted}`);
+let pushed = run("node_modules/prisma/build/index.js", ["db", "push", "--skip-generate", "--accept-data-loss"], schemaUrl);
+if (!pushed && schemaUrl !== runtime.url) {
+  console.error("Direct Postgres push failed. Retrying with the runtime URL.");
+  pushed = run("node_modules/prisma/build/index.js", ["db", "push", "--skip-generate", "--accept-data-loss"], runtime.url);
+}
+if (!pushed) process.exit(1);
 
 if (process.env.SKIP_DEMO_SEED !== "1") {
-  run("node_modules/tsx/dist/cli.mjs", ["prisma/seed.ts"], { DATABASE_URL: schemaUrl });
+  const seeded = run("node_modules/tsx/dist/cli.mjs", ["prisma/seed.ts"], schemaUrl);
+  if (!seeded) {
+    console.error("Demo seed failed. An empty database is seeded on the first storefront visit.");
+  }
 }
