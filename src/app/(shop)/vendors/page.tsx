@@ -3,10 +3,15 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 
 export default async function VendorsPage() {
-  const vendors = await prisma.vendorProfile.findMany({
-    where: { status: "ACTIVE", visibility: "PUBLIC" },
-    orderBy: { storeName: "asc" },
-  });
+  let vendors: { id: string; storeSlug: string; storeName: string; description: string | null }[] = [];
+  try {
+    vendors = await prisma.vendorProfile.findMany({
+      where: { status: "ACTIVE", visibility: "PUBLIC" },
+      orderBy: { storeName: "asc" },
+    });
+  } catch (error) {
+    console.error("Vendors page skipped the database:", error instanceof Error ? error.message : error);
+  }
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader title="Vendors" />

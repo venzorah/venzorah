@@ -186,14 +186,14 @@ export function StorefrontFooter() {
           <p className="mt-8 text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">Download our app</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
-              href="/"
+              href="/install"
               className="inline-flex flex-col rounded-md bg-black px-3 py-1.5 leading-none ring-1 ring-white/20"
             >
               <span className="text-[10px] text-white/80">Download on the</span>
               <span className="mt-0.5 text-sm font-semibold">App Store</span>
             </Link>
             <Link
-              href="/"
+              href="/install"
               className="inline-flex flex-col rounded-md bg-black px-3 py-1.5 leading-none ring-1 ring-white/20"
             >
               <span className="text-[10px] text-white/80">GET IT ON</span>

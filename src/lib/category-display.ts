@@ -1,3 +1,5 @@
+import { slugify } from "./utils";
+
 export const CATEGORY_SHORT_NAMES: Record<string, string> = {
   "African Food and Groceries": "Food and groceries",
   "Fashion and Clothing": "Fashion",
@@ -54,4 +56,17 @@ export function categoryLabel(name: string) {
 
 export function categoryImage(name: string, stored: string | null | undefined) {
   return stored || CATEGORY_IMAGES[name] || null;
+}
+
+export function staticCategories() {
+  return Object.entries(CATEGORY_IMAGES).map(([name, image]) => ({
+    id: slugify(name),
+    name,
+    slug: slugify(name),
+    image,
+  }));
+}
+
+export function categoryBySlug(slug: string) {
+  return staticCategories().find((category) => category.slug === slug) ?? null;
 }

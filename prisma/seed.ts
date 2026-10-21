@@ -10,6 +10,7 @@ import {
 } from "../src/lib/permissions";
 import { DEFAULT_SETTINGS } from "../src/lib/settings";
 import { resolveDatabaseUrl } from "../src/lib/database-url";
+import { CMS_PAGES } from "../src/lib/cms-pages";
 import { slugify } from "../src/lib/utils";
 
 const prisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() });
@@ -281,16 +282,7 @@ export async function seedDemoData() {
     },
   });
 
-  const pages = [
-    { slug: "about", title: "About Venzorah", body: "Venzorah is a UK-first marketplace for African products across food, fashion, beauty, art, home and more." },
-    { slug: "terms", title: "Terms and conditions", body: "These terms are placeholders pending legal review." },
-    { slug: "privacy", title: "Privacy policy", body: "We process personal data to operate the marketplace. Export and deletion requests are handled from the customer dashboard." },
-    { slug: "returns", title: "Returns policy", body: "Customers may request returns within the configured window. Disputes place a hold on related vendor earnings only." },
-    { slug: "shipping", title: "Shipping policy", body: "Each vendor configures zones and rates. Checkout rejects destinations that cannot be served." },
-    { slug: "subscription-terms", title: "Subscription terms", body: "Monthly plans renew automatically when authorised. Six-month and annual plans follow administrator-configured renewal rules." },
-    { slug: "contact", title: "Contact", body: "Use the in-app support form or email support@venzorah.local in development." },
-    { slug: "faq", title: "FAQ", body: "How do I become a vendor? Register with a UK business location, complete KYC, then list products subject to plan limits." },
-  ];
+  const pages = Object.entries(CMS_PAGES).map(([slug, page]) => ({ slug, ...page }));
   for (const page of pages) {
     await prisma.cmsPage.upsert({
       where: { slug: page.slug },
