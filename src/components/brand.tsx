@@ -17,17 +17,11 @@ export function BrandMark({
       {/* Native img avoids next/image hydration mismatches in the PWA shell. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/logo-wordmark.png"
-        alt=""
-        className="h-10 w-auto max-w-[min(13rem,calc(100vw-8rem))] rounded-md bg-black object-contain sm:hidden"
-      />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
         src="/icon.png"
         alt=""
         width={size}
         height={size}
-        className="hidden rounded-lg sm:inline"
+        className="rounded-lg"
       />
       {withWord ? (
         <span className="hidden text-lg font-extrabold tracking-tight text-ink sm:inline">
