@@ -7,15 +7,29 @@ import { formatGbp } from "@/lib/money";
 
 export default async function AccountHome() {
   const user = await requireUser();
-  const [orders, wishlist, notifications, reviews, returns] = await Promise.all([
-    prisma.order.findMany({ where: { userId: user.id }, orderBy: { placedAt: "desc" }, take: 5 }),
-    prisma.wishlistItem.count({ where: { userId: user.id } }),
-    prisma.notification.count({ where: { userId: user.id, readAt: null } }),
-    prisma.review.count({ where: { userId: user.id } }),
-    prisma.dispute.count({
-      where: { vendorOrder: { order: { userId: user.id } }, status: { in: ["OPEN", "INVESTIGATING"] } },
-    }),
-  ]);
+  let orders: { id: string; number: string; totalPence: number; status: string }[] = [];
+  let wishlist = 0;
+  let notifications = 0;
+  let reviews = 0;
+  let returns = 0;
+  try {
+    const [orderRows, wishlistCount, notificationCount, reviewCount, returnCount] = await Promise.all([
+      prisma.order.findMany({ where: { userId: user.id }, orderBy: { placedAt: "desc" }, take: 5 }),
+      prisma.wishlistItem.count({ where: { userId: user.id } }),
+      prisma.notification.count({ where: { userId: user.id, readAt: null } }),
+      prisma.review.count({ where: { userId: user.id } }),
+      prisma.dispute.count({
+        where: { vendorOrder: { order: { userId: user.id } }, status: { in: ["OPEN", "INVESTIGATING"] } },
+      }),
+    ]);
+    orders = orderRows;
+    wishlist = wishlistCount;
+    notifications = notificationCount;
+    reviews = reviewCount;
+    returns = returnCount;
+  } catch (error) {
+    console.error("[account] dashboard data unavailable", error instanceof Error ? error.message : error);
+  }
   return (
     <>
       <PageHeader

@@ -6,6 +6,32 @@ import { formatGbp } from "@/lib/money";
 
 export default async function AdminHome() {
   await requirePermission("admin.dashboard.view");
+  try {
+    return await AdminHomeLive();
+  } catch (error) {
+    console.error("[admin] dashboard data unavailable", error instanceof Error ? error.message : error);
+    return <AdminHomeEmpty />;
+  }
+}
+
+function AdminHomeEmpty() {
+  return (
+    <>
+      <PageHeader
+        title="Marketplace control centre"
+        description="You are signed in. Sales, vendors and payouts appear once the live database is connected."
+      />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Customers" value={0} hint="Waiting for the database" accent="navy" />
+        <StatCard label="Vendors" value={0} hint="Waiting for the database" accent="gold" />
+        <StatCard label="Live products" value={0} hint="Catalogue is still shown in the shop" accent="info" />
+        <StatCard label="Orders" value={0} hint="None stored yet" accent="success" />
+      </div>
+    </>
+  );
+}
+
+async function AdminHomeLive() {
   const [
     customers,
     suspendedCustomers,

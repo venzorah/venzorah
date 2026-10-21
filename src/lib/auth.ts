@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { randomBytes, createHash } from "crypto";
 import { prisma } from "./db";
+import { isDemoToken, readDemoToken, signDemoToken } from "./demo-access";
 import type { PermissionKey } from "./permissions";
 
 export const SESSION_COOKIE = "venzorah_session";
@@ -56,12 +57,33 @@ export async function createSession(userId: string, days = SESSION_DAYS) {
   return token;
 }
 
+export async function createDemoSession(userId: string, days = SESSION_DAYS) {
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, signDemoToken(userId, days), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: expiresAt,
+  });
+}
+
 export async function destroySession() {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
-  if (token) {
-    await prisma.session.deleteMany({ where: { token } });
-    jar.delete(SESSION_COOKIE);
+  if (token && !isDemoToken(token)) {
+    await prisma.session.deleteMany({ where: { token } }).catch(() => undefined);
+  }
+  jar.delete(SESSION_COOKIE);
+}
+
+async function authDatabaseReady() {
+  try {
+    await prisma.user.findFirst({ select: { id: true } });
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -88,34 +110,43 @@ export async function getSessionUser(): Promise<AuthUser | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  const session = await prisma.session.findUnique({
-    where: { token },
-    include: {
-      user: {
-        include: {
-          roles: { include: { role: true } },
-          vendor: true,
+  if (isDemoToken(token)) {
+    const demo = readDemoToken(token);
+    if (!demo || (await authDatabaseReady())) return null;
+    return demo;
+  }
+  try {
+    const session = await prisma.session.findUnique({
+      where: { token },
+      include: {
+        user: {
+          include: {
+            roles: { include: { role: true } },
+            vendor: true,
+          },
         },
       },
-    },
-  });
-  if (!session || session.expiresAt < new Date()) {
-    if (session) await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
+    });
+    if (!session || session.expiresAt < new Date()) {
+      if (session) await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
+      return null;
+    }
+    if (session.user.status === "SUSPENDED") return null;
+    const roleKeys = session.user.roles.map((r) => r.role.key);
+    const permissions = await loadPermissions(session.user.id, roleKeys);
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      image: session.user.image,
+      status: session.user.status,
+      roles: roleKeys,
+      permissions,
+      vendorId: session.user.vendor?.id ?? null,
+    };
+  } catch {
     return null;
   }
-  if (session.user.status === "SUSPENDED") return null;
-  const roleKeys = session.user.roles.map((r) => r.role.key);
-  const permissions = await loadPermissions(session.user.id, roleKeys);
-  return {
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-    image: session.user.image,
-    status: session.user.status,
-    roles: roleKeys,
-    permissions,
-    vendorId: session.user.vendor?.id ?? null,
-  };
 }
 
 export async function requireUser(loginHref = "/login") {

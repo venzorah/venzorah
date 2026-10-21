@@ -8,7 +8,36 @@ import { StatCard } from "@/components/stat-card";
 
 export default async function VendorHome() {
   const user = await requirePermission("vendor.store.manage");
-  const vendorId = user.vendorId!;
+  const vendorId = user.vendorId;
+  if (!vendorId) {
+    return <VendorHomeEmpty name={user.name} />;
+  }
+  try {
+    return await VendorHomeLive(vendorId);
+  } catch (error) {
+    console.error("[vendor] dashboard data unavailable", error instanceof Error ? error.message : error);
+    return <VendorHomeEmpty name={user.name} />;
+  }
+}
+
+function VendorHomeEmpty({ name }: { name: string }) {
+  return (
+    <>
+      <PageHeader title={name} description="Your store tools are ready. Orders and payouts appear once the live database is connected." />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Live listings" value={0} hint="Published products" accent="navy" />
+        <StatCard label="Pending" value={formatGbp(0)} hint="Awaiting delivery" accent="gold" />
+        <StatCard label="Available" value={formatGbp(0)} hint="Ready to withdraw" accent="success" />
+        <StatCard label="Held" value={formatGbp(0)} hint="In dispute or review" accent="info" />
+      </div>
+      <div className="mt-8">
+        <EmptyState title="No vendor orders yet" />
+      </div>
+    </>
+  );
+}
+
+async function VendorHomeLive(vendorId: string) {
   const [plan, listings, orders, balances, vendor] = await Promise.all([
     getActivePlanForVendor(vendorId),
     countActiveListings(vendorId),

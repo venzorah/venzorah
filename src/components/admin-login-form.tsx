@@ -4,6 +4,7 @@ import Link from "next/link";
 import { loginAction } from "@/app/actions/auth";
 import { ActionForm } from "@/components/forms";
 import { PasswordInput } from "@/components/password-input";
+import { DemoAccessNote } from "@/components/demo-access-note";
 import { Button, Field, Input, TextLink } from "@/components/ui";
 
 export function AdminLoginForm() {
@@ -34,6 +35,7 @@ export function AdminLoginForm() {
           Use the storefront login
         </Link>
       </p>
+      <DemoAccessNote staff />
     </div>
   );
 }

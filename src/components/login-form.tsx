@@ -6,6 +6,7 @@ import { loginAction } from "@/app/actions/auth";
 import { ActionForm } from "@/components/forms";
 import { PasswordInput } from "@/components/password-input";
 import { SocialLoginButtons } from "@/components/social-login";
+import { DemoAccessNote } from "@/components/demo-access-note";
 import { Button, Field, Input, TextLink } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { AuthPortal } from "@/lib/oauth";
@@ -98,6 +99,7 @@ export function LoginForm({
           </>
         )}
       </p>
+      <DemoAccessNote />
     </div>
   );
 }

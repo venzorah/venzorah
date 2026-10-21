@@ -1,17 +1,19 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import {
   consumeAuthToken,
   createAuthToken,
+  createDemoSession,
   createSession,
   destroySession,
   hashPassword,
   rateLimitLogin,
   verifyPassword,
 } from "@/lib/auth";
+import { isDatabaseFailure, matchDemoAccount, sessionDestination } from "@/lib/demo-access";
 import { ROLE_KEYS } from "@/lib/permissions";
 import { audit, notify, sendTemplatedEmail } from "@/lib/audit";
 import { slugify } from "@/lib/utils";
@@ -120,34 +122,42 @@ export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
   const password = String(formData.get("password") ?? "");
   if (!rateLimitLogin(email)) return { error: "Too many attempts. Try again in 15 minutes." };
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return { error: "Incorrect email or password." };
-  if (!user.passwordHash) {
-    return { error: "This account uses Google, Facebook or Apple. Continue with that provider." };
-  }
-  if (!(await verifyPassword(password, user.passwordHash))) {
-    return { error: "Incorrect email or password." };
-  }
-  if (user.status === "SUSPENDED") return { error: "This account is suspended." };
   const remember = String(formData.get("remember") ?? "") === "on";
   const portal = String(formData.get("portal") ?? "buyer");
-  const roles = await prisma.userRole.findMany({ where: { userId: user.id }, include: { role: true } });
-  const keys = roles.map((r) => r.role.key);
-  if (portal === "admin") {
-    if (!keys.includes(ROLE_KEYS.ADMIN)) {
+  const days = remember ? 30 : 7;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return { error: "Incorrect email or password." };
+    if (!user.passwordHash) {
+      return { error: "This account uses Google, Facebook or Apple. Continue with that provider." };
+    }
+    if (!(await verifyPassword(password, user.passwordHash))) {
+      return { error: "Incorrect email or password." };
+    }
+    if (user.status === "SUSPENDED") return { error: "This account is suspended." };
+    const roles = await prisma.userRole.findMany({ where: { userId: user.id }, include: { role: true } });
+    const keys = roles.map((r) => r.role.key);
+    if (portal === "admin" && !keys.includes(ROLE_KEYS.ADMIN)) {
       return { error: "This sign-in is for Venzorah staff only. Use the customer or seller login." };
     }
-    await createSession(user.id, remember ? 30 : 7);
-    redirect("/admin");
+    await createSession(user.id, days);
+    redirect(sessionDestination(keys, portal));
+  } catch (error) {
+    unstable_rethrow(error);
+    if (!isDatabaseFailure(error)) {
+      console.error("[auth] sign-in failed", error instanceof Error ? error.message : error);
+      return { error: "Sign-in is unavailable right now. Try again in a moment." };
+    }
   }
-  await createSession(user.id, remember ? 30 : 7);
-  if (portal === "seller") {
-    if (keys.includes(ROLE_KEYS.VENDOR) || keys.includes(ROLE_KEYS.ADMIN)) redirect("/vendor");
-    redirect("/sell-on-venzorah");
+
+  const demo = matchDemoAccount(email, password);
+  if (!demo) return { error: "Incorrect email or password." };
+  if (portal === "admin" && !demo.roles.includes(ROLE_KEYS.ADMIN)) {
+    return { error: "This sign-in is for Venzorah staff only. Use the customer or seller login." };
   }
-  if (keys.includes(ROLE_KEYS.ADMIN)) redirect("/admin");
-  if (keys.includes(ROLE_KEYS.VENDOR)) redirect("/vendor");
-  redirect("/account");
+  await createDemoSession(demo.id, days);
+  redirect(sessionDestination(demo.roles, portal));
 }
 
 export async function logoutAction() {
