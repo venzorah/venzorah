@@ -2,6 +2,9 @@ import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/*": ["./prisma/dev.db"],
+  },
   turbopack: {
     root: path.join(__dirname),
     rules: {

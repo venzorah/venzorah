@@ -1,10 +1,30 @@
+import { copyFileSync, existsSync } from "node:fs";
+import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
-// Prisma reads schema.prisma `env("DATABASE_URL")` when the client is constructed.
-// Vercel builds have no .env file, so prerender fails unless a fallback exists.
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "file:./dev.db";
+function resolveDatabaseUrl() {
+  const existing = process.env.DATABASE_URL;
+  if (existing && !existing.startsWith("file:")) {
+    return existing;
+  }
+
+  const fileUrl = existing?.startsWith("file:") ? existing : "file:./dev.db";
+  if (!process.env.VERCEL) {
+    return fileUrl;
+  }
+
+  const tmpPath = "/tmp/venzorah.db";
+  if (!existsSync(tmpPath)) {
+    const bundled = [
+      path.join(process.cwd(), "prisma", "dev.db"),
+      path.join(process.cwd(), "dev.db"),
+    ].find((candidate) => existsSync(candidate));
+    if (bundled) copyFileSync(bundled, tmpPath);
+  }
+  return `file:${tmpPath}`;
 }
+
+process.env.DATABASE_URL = resolveDatabaseUrl();
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
