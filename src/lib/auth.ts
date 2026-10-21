@@ -118,14 +118,17 @@ export async function getSessionUser(): Promise<AuthUser | null> {
   };
 }
 
-export async function requireUser() {
+export async function requireUser(loginHref = "/login") {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(loginHref);
   return user;
 }
 
-export async function requirePermission(key: PermissionKey | PermissionKey[]) {
-  const user = await requireUser();
+export async function requirePermission(
+  key: PermissionKey | PermissionKey[],
+  options?: { loginHref?: string },
+) {
+  const user = await requireUser(options?.loginHref ?? "/login");
   const keys = Array.isArray(key) ? key : [key];
   const ok = keys.some((k) => user.permissions.includes(k));
   if (!ok) redirect("/forbidden");

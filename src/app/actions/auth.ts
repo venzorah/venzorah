@@ -121,9 +121,16 @@ export async function loginAction(formData: FormData) {
   if (user.status === "SUSPENDED") return { error: "This account is suspended." };
   const remember = String(formData.get("remember") ?? "") === "on";
   const portal = String(formData.get("portal") ?? "buyer");
-  await createSession(user.id, remember ? 30 : 7);
   const roles = await prisma.userRole.findMany({ where: { userId: user.id }, include: { role: true } });
   const keys = roles.map((r) => r.role.key);
+  if (portal === "admin") {
+    if (!keys.includes(ROLE_KEYS.ADMIN)) {
+      return { error: "This sign-in is for Venzorah staff only. Use the customer or seller login." };
+    }
+    await createSession(user.id, remember ? 30 : 7);
+    redirect("/admin");
+  }
+  await createSession(user.id, remember ? 30 : 7);
   if (portal === "seller") {
     if (keys.includes(ROLE_KEYS.VENDOR) || keys.includes(ROLE_KEYS.ADMIN)) redirect("/vendor");
     redirect("/sell-on-venzorah");

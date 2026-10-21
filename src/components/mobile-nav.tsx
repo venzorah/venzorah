@@ -9,7 +9,6 @@ const ITEMS = [
   { href: "/products", label: "Shop" },
   { href: "/cart", label: "Cart" },
   { href: "/account", label: "Account" },
-  { href: "/install", label: "Install" },
 ];
 
 export function StorefrontMobileNav() {
@@ -19,7 +18,7 @@ export function StorefrontMobileNav() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       aria-label="Primary"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
+      <ul className="mx-auto grid max-w-lg grid-cols-4">
         {ITEMS.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
