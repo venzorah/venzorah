@@ -5,7 +5,7 @@ UK-first multi-vendor marketplace for African products (food, fashion, beauty, a
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind CSS
-- Prisma ORM (SQLite locally, PostgreSQL in production)
+- Prisma ORM + PostgreSQL (Docker locally, Neon or Vercel Postgres in production)
 - Session cookies, bcrypt password hashing, RBAC
 - Stripe-ready webhooks; sandbox payments by default
 
@@ -25,11 +25,18 @@ PWA `theme_color` is `#002168` and `background_color` is `#FFFFFF`. The square m
 
 ```bash
 cp .env.example .env
+docker compose up -d
 npm install
 npx prisma db push
 npx prisma db seed
 npm run dev
 ```
+
+## Keep the demo catalogue live on Vercel
+
+1. Create a Postgres database (Neon or Vercel Postgres).
+2. In Vercel → Settings → Environment Variables, set `DATABASE_URL` on **Production** and **Preview** to the **direct** (non-pooler) Postgres URI. Prisma uses it for both the app and `db push` during build.
+3. Redeploy. The build runs `prisma db push` then `prisma db seed`, which upserts demo products, vendors, and the staff admin without wiping later customer/seller sign-ups.
 
 Open http://localhost:3000
 

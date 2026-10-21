@@ -1,12 +1,13 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: venzorah
       POSTGRES_PASSWORD: venzorah
       POSTGRES_DB: venzorah
-    ports:
-      - "5432:5432"
     volumes:
       - venzorah_pg:/var/lib/postgresql/data
 

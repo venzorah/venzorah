@@ -5,9 +5,6 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [{ source: "/admin/login", destination: "/admin-login" }];
   },
-  outputFileTracingIncludes: {
-    "/*": ["./prisma/dev.db", "./dev.db"],
-  },
   turbopack: {
     root: path.join(__dirname),
     rules: {

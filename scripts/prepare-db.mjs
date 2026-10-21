@@ -1,9 +1,11 @@
-import { copyFileSync, existsSync } from "node:fs";
-import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "file:./dev.db";
+const url = process.env.DATABASE_URL ?? "";
+if (!url || url.startsWith("file:")) {
+  console.error(
+    "DATABASE_URL must be a PostgreSQL URL. Set it in Vercel env vars (and locally in .env). Example: postgresql://venzorah:venzorah@localhost:5432/venzorah",
+  );
+  process.exit(1);
 }
 
 function run(command, args) {
@@ -19,15 +21,6 @@ function run(command, args) {
 
 run("npx", ["prisma", "db", "push", "--skip-generate"]);
 
-const skipSeed = process.env.SKIP_DEMO_SEED === "1";
-if (!skipSeed) {
+if (process.env.SKIP_DEMO_SEED !== "1") {
   run("npx", ["prisma", "db", "seed"]);
-}
-
-if (process.env.DATABASE_URL.startsWith("file:")) {
-  const fromPrisma = path.join(process.cwd(), "prisma", "dev.db");
-  const fromRoot = path.join(process.cwd(), "dev.db");
-  if (existsSync(fromPrisma) && !existsSync(fromRoot)) {
-    copyFileSync(fromPrisma, fromRoot);
-  }
 }

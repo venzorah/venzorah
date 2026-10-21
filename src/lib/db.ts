@@ -1,38 +1,21 @@
-import { copyFileSync, existsSync } from "node:fs";
-import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
-function resolveDatabaseUrl() {
-  const existing = process.env.DATABASE_URL;
-  if (existing && !existing.startsWith("file:")) {
-    return existing;
+function databaseUrl() {
+  const url = process.env.DATABASE_URL ?? "";
+  if (!url || url.startsWith("file:")) {
+    throw new Error(
+      "DATABASE_URL must be a PostgreSQL connection string. On Vercel, set it in Project Settings → Environment Variables (Neon or Vercel Postgres). Locally use docker compose or the same hosted URL.",
+    );
   }
-
-  const fileUrl = existing?.startsWith("file:") ? existing : "file:./dev.db";
-  if (!process.env.VERCEL) {
-    return fileUrl;
-  }
-
-  const tmpPath = "/tmp/venzorah.db";
-  const bundled = [
-    path.join(process.cwd(), "prisma", "dev.db"),
-    path.join(process.cwd(), "dev.db"),
-  ].find((candidate) => existsSync(candidate));
-  // Only seed /tmp once per instance. Overwriting on every boot deleted new customer and seller accounts.
-  if (bundled && !existsSync(tmpPath)) {
-    copyFileSync(bundled, tmpPath);
-  }
-  return `file:${tmpPath}`;
+  return url;
 }
-
-process.env.DATABASE_URL = resolveDatabaseUrl();
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    datasourceUrl: process.env.DATABASE_URL,
+    datasourceUrl: databaseUrl(),
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
