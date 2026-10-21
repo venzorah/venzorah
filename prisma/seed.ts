@@ -142,7 +142,7 @@ const CATALOG_LISTINGS: { category: string; name: string; price: number; descrip
   { category: "Other Approved African Products", name: "Multi-purpose shea balm", price: 695, description: "Travel tin of shea balm for lips and hands." },
 ];
 
-async function main() {
+export async function seedDemoData() {
   for (const perm of PERMISSIONS) {
     await prisma.permission.upsert({
       where: { key: perm.key },
@@ -773,10 +773,13 @@ async function main() {
   void customer;
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+const isCli = Boolean(process.argv[1] && /[\\/]seed\.(ts|js)$/.test(process.argv[1]));
+if (isCli) {
+  seedDemoData()
+    .then(() => prisma.$disconnect())
+    .catch(async (e) => {
+      console.error(e);
+      await prisma.$disconnect();
+      process.exit(1);
+    });
+}
