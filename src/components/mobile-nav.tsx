@@ -8,8 +8,8 @@ const ITEMS = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Shop" },
   { href: "/categories", label: "Categories" },
-  { href: "/cart", label: "Cart" },
-  { href: "/account", label: "Account" },
+  { href: "/account/profile", label: "Profile" },
+  { href: "/vendor/store", label: "Vendor" },
 ];
 
 export function StorefrontMobileNav() {
