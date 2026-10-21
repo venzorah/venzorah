@@ -8,13 +8,11 @@ export function ActionForm({
   children,
   className,
   successMessage = "Saved.",
-  encType,
 }: {
   action: (formData: FormData) => Promise<{ error?: string; ok?: boolean } | void>;
   children: ReactNode;
   className?: string;
   successMessage?: string | null;
-  encType?: "multipart/form-data" | "application/x-www-form-urlencoded";
 }) {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -22,7 +20,6 @@ export function ActionForm({
   return (
     <form
       className={className}
-      encType={encType}
       action={async (formData) => {
         setError(null);
         setOk(false);

@@ -76,7 +76,7 @@ export default async function KycPage({
         </p>
       )}
 
-      <ActionForm action={submitKyc} className="mt-8 grid max-w-lg gap-3" encType="multipart/form-data">
+      <ActionForm action={submitKyc} className="mt-8 grid max-w-lg gap-3">
         <p className="text-sm font-semibold text-ink">Extra documents for staff (optional)</p>
         <Field label="Verification type">
           <select name="kind" className="tap-target w-full rounded-xl border border-border bg-card px-3 text-sm text-ink">
