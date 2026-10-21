@@ -5,6 +5,8 @@ import { HomeHero } from "@/components/home-hero";
 import { CategoryCarousel } from "@/components/category-carousel";
 import { getSetting } from "@/lib/settings";
 import { getSessionUser } from "@/lib/auth";
+import { staticCategories } from "@/lib/category-display";
+import { demoProducts } from "@/lib/demo-catalog";
 import { dbErrorText, ensureDemoCatalog } from "@/lib/ensure-catalog";
 
 const FALLBACK_SLIDES = [
@@ -35,12 +37,26 @@ const FALLBACK_SLIDES = [
 ];
 
 function HomeFallback() {
+  const categories = staticCategories();
+  const products = demoProducts().slice(0, 10);
   return (
     <main>
-      <HomeHero slides={FALLBACK_SLIDES} categories={[]} />
+      <HomeHero slides={FALLBACK_SLIDES} categories={categories} />
+      <CategoryCarousel
+        items={categories.map((category) => ({ name: category.name, slug: category.slug, image: category.image }))}
+      />
       <section className="mx-auto max-w-7xl px-4 pb-16">
-        <h2 className="text-xl font-semibold tracking-tight text-ink">Products</h2>
-        <p className="mt-3 text-sm text-muted">The catalogue is not available yet. Reload in a moment.</p>
+        <div className="mb-5 flex items-end justify-between gap-3">
+          <h2 className="text-xl font-semibold tracking-tight text-ink">Products</h2>
+          <Link href="/products" className="text-sm text-muted hover:text-ink">
+            View all
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
       </section>
     </main>
   );
@@ -89,12 +105,19 @@ async function HomeCatalog() {
       cta: "Shop now",
     }));
 
+  const categoryTiles = categories.length ? categories : staticCategories();
+  const productTiles = products.length ? products : demoProducts().slice(0, 10);
+
   return (
     <main>
-      <HomeHero slides={slides.length ? slides : FALLBACK_SLIDES} categories={categories} />
+      <HomeHero slides={slides.length ? slides : FALLBACK_SLIDES} categories={categoryTiles} />
 
       <CategoryCarousel
-        items={categories.map((category) => ({ name: category.name, slug: category.slug, image: category.image }))}
+        items={categoryTiles.map((category) => ({
+          name: category.name,
+          slug: category.slug,
+          image: category.image,
+        }))}
       />
 
       <section className="mx-auto max-w-7xl px-4 pb-16">
@@ -105,7 +128,7 @@ async function HomeCatalog() {
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {products.map((product) => (
+          {productTiles.map((product) => (
             <ProductCard key={product.id} product={product} wished={wishedIds.has(product.id)} />
           ))}
         </div>

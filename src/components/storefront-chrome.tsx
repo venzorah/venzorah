@@ -5,12 +5,13 @@ import { FooterNewsletter } from "./footer-newsletter";
 import { ThemeToggle } from "./theme-toggle";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { staticCategories } from "@/lib/category-display";
 import { dbErrorText, ensureDemoCatalog } from "@/lib/ensure-catalog";
 import { ROLE_KEYS } from "@/lib/permissions";
 
 async function loadHeader() {
   const ready = await ensureDemoCatalog();
-  if (!ready) return { user: null, categories: [], cartCount: 0 };
+  if (!ready) return { user: null, categories: staticCategories(), cartCount: 0 };
   const user = await getSessionUser();
   const categories = await prisma.category.findMany({
     where: { enabled: true, parentId: null },
@@ -24,7 +25,7 @@ async function loadHeader() {
 export async function StorefrontHeader() {
   const loaded = await loadHeader().catch((error) => {
     console.error("Storefront header skipped the database:", dbErrorText(error));
-    return { user: null, categories: [], cartCount: 0 };
+    return { user: null, categories: staticCategories(), cartCount: 0 };
   });
   const { user, categories, cartCount } = loaded;
 

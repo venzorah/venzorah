@@ -4,6 +4,7 @@ import { ProductCard } from "@/components/product-card";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { getSessionUser } from "@/lib/auth";
 import { staticCategories } from "@/lib/category-display";
+import { filterDemoProducts } from "@/lib/demo-catalog";
 
 export default async function ProductsPage({
   searchParams,
@@ -52,7 +53,7 @@ export default async function ProductsPage({
       <Catalogue
         q={q}
         category={category}
-        products={[]}
+        products={filterDemoProducts(q, category)}
         categories={staticCategories().slice(0, 8)}
         wishedIds={new Set()}
       />
