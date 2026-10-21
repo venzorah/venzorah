@@ -242,7 +242,7 @@ export async function finishOAuth(provider: OAuthProvider, code: string | null, 
   }
   if (!profile) redirect(oauthErrorPath("oauth_email", portal));
 
-  const existingLink = await prisma.oauthAccount.findUnique({
+  const existingLink = await prisma.oAuthAccount.findUnique({
     where: { provider_providerAccountId: { provider, providerAccountId: profile.providerAccountId } },
     include: { user: { include: { roles: { include: { role: true } } } } },
   });
@@ -253,7 +253,7 @@ export async function finishOAuth(provider: OAuthProvider, code: string | null, 
       include: { roles: { include: { role: true } } },
     });
     if (user) {
-      await prisma.oauthAccount.create({
+      await prisma.oAuthAccount.create({
         data: { userId: user.id, provider, providerAccountId: profile.providerAccountId },
       });
     } else {
