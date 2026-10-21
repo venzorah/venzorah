@@ -4,6 +4,7 @@ import { formatGbp } from "@/lib/money";
 import { toggleWishlist } from "@/app/actions/marketplace";
 import { Button, Badge } from "@/components/ui";
 import { AddToCartButton } from "@/components/product-actions";
+import { ProductGallery } from "@/components/product-gallery";
 import { ShareButton } from "@/components/share-button";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -24,14 +25,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <main className="mx-auto grid max-w-7xl gap-8 px-4 py-8 lg:grid-cols-2">
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        {product.images[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={product.images[0].url} alt={product.name} className="w-full object-cover" />
-        ) : (
-          <div className="flex aspect-square items-center justify-center text-muted">No image</div>
-        )}
-      </div>
+      <ProductGallery images={product.images} name={product.name} />
       <div>
         <Badge>{product.category.name}</Badge>
         <h1 className="mt-3 text-3xl font-bold text-ink">{product.name}</h1>

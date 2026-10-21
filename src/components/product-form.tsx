@@ -26,6 +26,7 @@ export function ProductForm({
     originCountry: string;
     handlingDays: number;
     attributes: { key: string; value: string }[];
+    images?: { url: string; alt: string | null; sortOrder: number }[];
   };
 }) {
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? categories[0]?.id ?? "");
@@ -74,8 +75,22 @@ export function ProductForm({
           <Input name="stock" type="number" min={0} defaultValue={10} />
         </Field>
       )}
-      <Field label="Product photo" hint="Use the camera on a phone, or pick an existing image.">
-        <Input name="image" type="file" accept="image/*" capture="environment" />
+      {product?.images?.length ? (
+        <div className="flex gap-2 overflow-x-auto">
+          {product.images.map((image, index) => (
+            <div key={`${image.url}-${index}`} className="w-16 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image.url} alt="" className="aspect-square w-full rounded-xl object-cover" />
+              <p className="mt-1 text-center text-[11px] text-muted">{index === 0 ? "Featured" : "Gallery"}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <Field label="Featured image" hint="This is the main photo on the product card and page.">
+        <Input name="featured" type="file" accept="image/*" />
+      </Field>
+      <Field label="Gallery" hint="Extra photos shoppers can browse after the featured image.">
+        <Input name="gallery" type="file" accept="image/*" multiple />
       </Field>
       <Field label="Origin country">
         <Input name="originCountry" defaultValue={product?.originCountry ?? "NG"} />

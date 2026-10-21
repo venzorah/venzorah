@@ -636,7 +636,29 @@ export async function seedDemoData() {
       },
     });
     await prisma.productImage.deleteMany({ where: { productId: row.id } });
-    await prisma.productImage.create({ data: { productId: row.id, url: opts.image, alt: opts.name } });
+    const galleryPool = [
+      "/products/palm-oil.jpg",
+      "/products/white-garri.jpg",
+      "/products/ground-egusi.jpg",
+      "/products/plantain-chips.jpg",
+      "/products/yellow-garri.jpg",
+      "/categories/cat-food.jpg",
+      "/categories/cat-fashion.jpg",
+      "/slides/slide-beauty.jpg",
+    ].filter((url) => url !== opts.image);
+    const start = opts.name.length % galleryPool.length;
+    const gallery = [galleryPool[start], galleryPool[(start + 3) % galleryPool.length]];
+    await prisma.productImage.createMany({
+      data: [
+        { productId: row.id, url: opts.image, alt: opts.name, sortOrder: 0 },
+        ...gallery.map((url, index) => ({
+          productId: row.id,
+          url,
+          alt: opts.name,
+          sortOrder: index + 1,
+        })),
+      ],
+    });
     if (opts.pack) {
       await prisma.productAttributeValue.upsert({
         where: { productId_key: { productId: row.id, key: "net_weight" } },

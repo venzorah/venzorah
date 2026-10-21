@@ -8,7 +8,7 @@ export default async function WishlistPage() {
   const user = await requireUser();
   const items = await prisma.wishlistItem.findMany({
     where: { userId: user.id },
-    include: { product: { include: { images: true, vendor: true, variants: true } } },
+    include: { product: { include: { images: { orderBy: { sortOrder: "asc" } }, vendor: true, variants: true } } },
   });
   return (
     <>

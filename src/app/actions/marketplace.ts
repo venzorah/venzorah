@@ -523,20 +523,61 @@ export async function saveProduct(formData: FormData) {
     status,
     publishedAt: status === "PUBLISHED" ? new Date() : null,
   };
-  const image = formData.get("image");
-  let imageUrl: string | null = String(formData.get("imageUrl") ?? "") || null;
-  if (image instanceof File && image.size > 0) {
-    try {
-      imageUrl = await savePublicUpload(image, "products");
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : "Could not store that image." };
+  let featuredUrl: string | null = null;
+  const galleryUrls: string[] = [];
+  try {
+    const featured = formData.get("featured") ?? formData.get("image");
+    if (featured instanceof File && featured.size > 0) {
+      featuredUrl = await savePublicUpload(featured, "products");
     }
+    for (const file of formData.getAll("gallery")) {
+      if (file instanceof File && file.size > 0) {
+        galleryUrls.push(await savePublicUpload(file, "products"));
+      }
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not store that image." };
   }
+  const imageRows = [
+    ...(featuredUrl ? [{ url: featuredUrl, alt: data.name, sortOrder: 0 }] : []),
+    ...galleryUrls.map((url, index) => ({
+      url,
+      alt: data.name,
+      sortOrder: (featuredUrl ? 1 : 0) + index,
+    })),
+  ];
   let productId = id;
   if (id) {
     await prisma.product.update({ where: { id, vendorId: user.vendorId }, data });
-    if (imageUrl) {
-      await prisma.productImage.create({ data: { productId: id, url: imageUrl, alt: data.name } });
+    if (featuredUrl) {
+      const current = await prisma.productImage.findFirst({
+        where: { productId: id },
+        orderBy: { sortOrder: "asc" },
+      });
+      if (current) {
+        await prisma.productImage.update({
+          where: { id: current.id },
+          data: { url: featuredUrl, alt: data.name, sortOrder: 0 },
+        });
+      } else {
+        await prisma.productImage.create({
+          data: { productId: id, url: featuredUrl, alt: data.name, sortOrder: 0 },
+        });
+      }
+    }
+    if (galleryUrls.length) {
+      const last = await prisma.productImage.aggregate({
+        where: { productId: id },
+        _max: { sortOrder: true },
+      });
+      let sortOrder = (last._max.sortOrder ?? -1) + 1;
+      if (featuredUrl) sortOrder = Math.max(sortOrder, 1);
+      for (const url of galleryUrls) {
+        await prisma.productImage.create({
+          data: { productId: id, url, alt: data.name, sortOrder },
+        });
+        sortOrder += 1;
+      }
     }
   } else {
     const created = await prisma.product.create({
@@ -552,7 +593,7 @@ export async function saveProduct(formData: FormData) {
             pricePence: data.pricePence,
           },
         },
-        images: imageUrl ? { create: { url: imageUrl, alt: data.name } } : undefined,
+        images: imageRows.length ? { create: imageRows } : undefined,
       },
     });
     productId = created.id;

@@ -11,7 +11,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const [product, categories] = await Promise.all([
     prisma.product.findFirst({
       where: { id, vendorId: user.vendorId! },
-      include: { attributes: true, variants: true },
+      include: { attributes: true, variants: true, images: { orderBy: { sortOrder: "asc" } } },
     }),
     prisma.category.findMany({
       where: { enabled: true },
@@ -39,6 +39,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           originCountry: product.originCountry,
           handlingDays: product.handlingDays,
           attributes: product.attributes,
+          images: product.images,
         }}
       />
     </>
