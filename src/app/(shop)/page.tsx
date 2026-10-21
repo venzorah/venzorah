@@ -46,19 +46,9 @@ function HomeFallback() {
   );
 }
 
-export default async function HomePage() {
-  const ready = await ensureDemoCatalog();
-  if (!ready) return <HomeFallback />;
-
-  let user;
-  let tagline;
-  let banners;
-  let categories;
-  let products;
-  let wished;
-  try {
-    user = await getSessionUser();
-    [tagline, banners, categories, products, wished] = await Promise.all([
+async function HomeCatalog() {
+  const user = await getSessionUser();
+  const [tagline, banners, categories, products, wished] = await Promise.all([
     getSetting("tagline"),
     prisma.cmsBanner.findMany({ where: { enabled: true }, orderBy: { sortOrder: "asc" } }),
     prisma.category.findMany({
@@ -82,20 +72,20 @@ export default async function HomePage() {
       : Promise.resolve([]),
   ]);
 
-  const wishedIds = new Set(wished.map((w) => w.productId));
+  const wishedIds = new Set(wished.map((item) => item.productId));
   const slideCopy = [
     { kicker: "Exclusive offer 10% off this week", body: "Starting from £1.99" },
     { kicker: "New season drops", body: "Ankara, kente-inspired pieces and everyday style." },
     { kicker: "Beauty edit", body: "Shea, oils and haircare from African makers." },
   ];
   const slides = banners
-    .filter((b) => b.image)
-    .map((b, i) => ({
-      title: b.title,
-      href: b.href || "/products",
-      image: b.image as string,
-      body: slideCopy[i]?.body ?? tagline,
-      kicker: slideCopy[i]?.kicker ?? "Venzorah marketplace",
+    .filter((banner) => banner.image)
+    .map((banner, index) => ({
+      title: banner.title,
+      href: banner.href || "/products",
+      image: banner.image as string,
+      body: slideCopy[index]?.body ?? tagline,
+      kicker: slideCopy[index]?.kicker ?? "Venzorah marketplace",
       cta: "Shop now",
     }));
 
@@ -104,7 +94,7 @@ export default async function HomePage() {
       <HomeHero slides={slides.length ? slides : FALLBACK_SLIDES} categories={categories} />
 
       <CategoryCarousel
-        items={categories.map((c) => ({ name: c.name, slug: c.slug, image: c.image }))}
+        items={categories.map((category) => ({ name: category.name, slug: category.slug, image: category.image }))}
       />
 
       <section className="mx-auto max-w-7xl px-4 pb-16">
@@ -115,13 +105,20 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {products.map((p) => (
-            <ProductCard key={p.id} product={p} wished={wishedIds.has(p.id)} />
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} wished={wishedIds.has(product.id)} />
           ))}
         </div>
       </section>
     </main>
   );
+}
+
+export default async function HomePage() {
+  const ready = await ensureDemoCatalog();
+  if (!ready) return <HomeFallback />;
+  try {
+    return await HomeCatalog();
   } catch (error) {
     console.error("Homepage skipped the database:", dbErrorText(error));
     return <HomeFallback />;
