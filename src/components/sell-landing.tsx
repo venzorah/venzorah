@@ -50,7 +50,7 @@ const FAQS = [
   },
   {
     q: "What documents do I need?",
-    a: "UK vendors need identity and address details for KYC. Registered businesses should also provide company information from the vendor dashboard.",
+    a: "UK vendors complete Sylmera Identity checks: photo ID for individual sellers, or Companies House plus ID for a registered business.",
   },
 ];
 

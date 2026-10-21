@@ -19,7 +19,8 @@ import { parseGbpToPence } from "@/lib/money";
 import { getSetting, setSetting, truthy } from "@/lib/settings";
 import { savePrivateUpload, savePublicUpload } from "@/lib/uploads";
 import { assertNotLastAdmin } from "@/lib/last-admin";
-import { ROLE_KEYS } from "@/lib/permissions";
+import { applyKycDecision, applySylmeraSession } from "@/lib/kyc";
+import { createSylmeraSession, getSylmeraSession, isSylmeraConfigured, type SylmeraKind } from "@/lib/sylmera";
 
 async function getOrCreateCart(userId: string) {
   const existing = await prisma.cart.findFirst({ where: { userId } });
@@ -69,6 +70,7 @@ export async function updateCartItem(itemId: string, quantity: number) {
   if (quantity <= 0) await prisma.cartItem.delete({ where: { id: itemId } });
   else await prisma.cartItem.update({ where: { id: itemId }, data: { quantity } });
   revalidatePath("/cart");
+  revalidatePath("/");
 }
 
 export async function toggleWishlistForm(formData: FormData) {
@@ -268,28 +270,10 @@ export async function adminReviewKyc(id: string, status: string, notes?: string)
     where: { id },
     data: { status, notes, reviewedAt: new Date(), reviewerId: actor.id },
   });
-  await prisma.vendorProfile.update({
-    where: { id: submission.vendorId },
-    data: {
-      kycStatus: status,
-      payoutEligible: status === "APPROVED",
-    },
-  });
-  if (status === "APPROVED") {
-    const vendor = await prisma.vendorProfile.findUnique({ where: { id: submission.vendorId } });
-    if (vendor) {
-      const role = await prisma.role.findUnique({ where: { key: ROLE_KEYS.VERIFIED_VENDOR } });
-      if (role) {
-        await prisma.userRole.upsert({
-          where: { userId_roleId: { userId: vendor.userId, roleId: role.id } },
-          update: {},
-          create: { userId: vendor.userId, roleId: role.id },
-        });
-      }
-    }
-  }
+  await applyKycDecision(submission.vendorId, status, actor.id);
   await audit({ actorId: actor.id, action: "kyc.review", entity: "KycSubmission", entityId: id, metadata: { status } });
   revalidatePath("/admin/vendors");
+  revalidatePath(`/admin/vendors/${submission.vendorId}`);
 }
 
 export async function adminResolveDispute(id: string, status: string, refundPence?: number) {
@@ -420,6 +404,66 @@ export async function saveVendorStore(formData: FormData) {
   revalidatePath("/vendor/store");
 }
 
+export async function startSylmeraKyc(formData: FormData) {
+  const user = await requirePermission("vendor.kyc.submit");
+  if (!user.vendorId) return { error: "Vendor profile missing." };
+  if (!isSylmeraConfigured()) {
+    return { error: "Sylmera identity verification is not configured. Add SYLMERA_API_KEY." };
+  }
+  const kind: SylmeraKind = String(formData.get("kind") ?? "person") === "business" ? "business" : "person";
+  const sellerType = kind === "business" ? "BUSINESS" : "INDIVIDUAL";
+  let session;
+  try {
+    session = await createSylmeraSession({
+      clientReference: `vendor:${user.vendorId}:${kind}`,
+      kind,
+      returnUrl: `${process.env.APP_URL ?? "http://localhost:3000"}/vendor/kyc?sylmera=1`,
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not start Sylmera verification." };
+  }
+  await prisma.vendorProfile.update({
+    where: { id: user.vendorId },
+    data: { sellerType, kycStatus: "PENDING" },
+  });
+  await prisma.kycSubmission.create({
+    data: {
+      vendorId: user.vendorId,
+      kind,
+      provider: "sylmera",
+      providerSessionId: session.id,
+      providerStatus: session.status ?? "created",
+      hostedUrl: session.url,
+      status: "PENDING",
+      notes: kind === "business" ? "UK business verification" : "Individual seller verification",
+    },
+  });
+  revalidatePath("/vendor/kyc");
+  redirect(session.url!);
+}
+
+export async function syncSylmeraKyc() {
+  const user = await requirePermission("vendor.kyc.submit");
+  if (!user.vendorId || !isSylmeraConfigured()) return;
+  const pending = await prisma.kycSubmission.findMany({
+    where: {
+      vendorId: user.vendorId,
+      provider: "sylmera",
+      providerSessionId: { not: null },
+      status: { in: ["PENDING"] },
+    },
+  });
+  for (const row of pending) {
+    try {
+      const session = await getSylmeraSession(row.providerSessionId!);
+      await applySylmeraSession(row.id, session);
+    } catch {
+      // Keep the local pending row if Sylmera is briefly unreachable.
+    }
+  }
+  revalidatePath("/vendor/kyc");
+}
+
 export async function submitKyc(formData: FormData) {
   const user = await requirePermission("vendor.kyc.submit");
   if (!user.vendorId) return { error: "Vendor profile missing." };
@@ -432,9 +476,12 @@ export async function submitKyc(formData: FormData) {
       return { error: error instanceof Error ? error.message : "Could not store that document." };
     }
   }
+  const kind = String(formData.get("kind") ?? "person") === "business" ? "business" : "person";
   await prisma.kycSubmission.create({
     data: {
       vendorId: user.vendorId,
+      kind,
+      provider: "manual",
       status: "PENDING",
       notes: String(formData.get("notes") ?? ""),
       documentRefs,
@@ -442,7 +489,10 @@ export async function submitKyc(formData: FormData) {
   });
   await prisma.vendorProfile.update({
     where: { id: user.vendorId },
-    data: { kycStatus: "PENDING" },
+    data: {
+      sellerType: kind === "business" ? "BUSINESS" : "INDIVIDUAL",
+      kycStatus: "PENDING",
+    },
   });
   revalidatePath("/vendor/kyc");
 }

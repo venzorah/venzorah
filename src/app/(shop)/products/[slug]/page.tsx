@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { formatGbp } from "@/lib/money";
-import { addToCartFromForm, toggleWishlist } from "@/app/actions/marketplace";
+import { toggleWishlist } from "@/app/actions/marketplace";
 import { Button, Badge } from "@/components/ui";
-import { ActionForm } from "@/components/forms";
+import { AddToCartButton } from "@/components/product-actions";
 import { ShareButton } from "@/components/share-button";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -48,12 +48,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             ))}
           </dl>
         ) : null}
-        <ActionForm className="mt-6 grid gap-3" action={addToCartFromForm}>
-          <input type="hidden" name="productId" value={product.id} />
-          <input type="hidden" name="variantId" value={product.variants[0]?.id ?? ""} />
-          <input type="hidden" name="quantity" value="1" />
-          <Button type="submit">Add to cart</Button>
-        </ActionForm>
+        <div className="mt-6">
+          <AddToCartButton
+            productId={product.id}
+            variantId={product.variants[0]?.id}
+            name={product.name}
+          />
+        </div>
         <div className="mt-3">
           <ShareButton title={product.name} text={`Shop ${product.name} on Venzorah`} />
         </div>

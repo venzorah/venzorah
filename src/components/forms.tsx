@@ -8,6 +8,7 @@ export function ActionForm({
   children,
   className,
   successMessage = "Saved.",
+  encType,
 }: {
   action: (formData: FormData) => Promise<{ error?: string; ok?: boolean } | void>;
   children: ReactNode;
@@ -21,6 +22,7 @@ export function ActionForm({
   return (
     <form
       className={className}
+      encType={encType}
       action={async (formData) => {
         setError(null);
         setOk(false);

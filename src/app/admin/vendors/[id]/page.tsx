@@ -49,18 +49,39 @@ export default async function AdminVendorDetail({ params }: { params: Promise<{ 
         <Button type="submit">Save vendor flags</Button>
       </ActionForm>
       <h2 className="mt-8 font-bold">KYC submissions</h2>
+      <p className="text-sm text-muted">
+        Seller type: {vendor.sellerType === "BUSINESS" ? "UK business" : "Individual"}
+        {vendor.companyNumber ? ` · Company ${vendor.companyNumber}` : ""}
+      </p>
       {vendor.kycSubmissions.map((s) => (
-        <form
-          key={s.id}
-          className="mt-2 flex flex-wrap gap-2"
-          action={async () => {
-            "use server";
-            await adminReviewKyc(s.id, "APPROVED");
-          }}
-        >
-          <span className="text-sm">{s.status}</span>
-          <Button type="submit">Approve</Button>
-        </form>
+        <div key={s.id} className="mt-3 rounded-xl border border-border bg-card p-3 text-sm">
+          <p className="font-semibold">
+            {s.kind === "business" ? "Business" : "Individual"} · {s.provider} · {s.status}
+          </p>
+          <p className="text-muted">
+            {s.decision || s.providerStatus ? `Sylmera ${s.decision || s.providerStatus}` : s.notes || "No notes"}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <form
+              action={async () => {
+                "use server";
+                await adminReviewKyc(s.id, "APPROVED");
+              }}
+            >
+              <Button type="submit">Approve</Button>
+            </form>
+            <form
+              action={async () => {
+                "use server";
+                await adminReviewKyc(s.id, "REJECTED");
+              }}
+            >
+              <Button type="submit" variant="danger">
+                Reject
+              </Button>
+            </form>
+          </div>
+        </div>
       ))}
     </>
   );

@@ -61,7 +61,7 @@ export function ProductCard({
             </span>
           ) : null}
         </div>
-        <div className="space-y-1 px-1 pb-12 pt-3">
+        <div className="space-y-1 px-1 pt-3">
           <p className="text-xs text-muted">{product.vendor.storeName}</p>
           <h3 className="line-clamp-2 text-sm font-bold text-ink">{product.name}</h3>
           {rating ? (
@@ -80,7 +80,9 @@ export function ProductCard({
         </div>
       </Link>
       <WishlistButton productId={product.id} wished={wished} />
-      <QuickAddButton productId={product.id} variantId={product.variants?.[0]?.id} />
+      <div className="px-1 pb-1 pt-2">
+        <QuickAddButton productId={product.id} variantId={product.variants?.[0]?.id} name={product.name} />
+      </div>
     </article>
   );
 }

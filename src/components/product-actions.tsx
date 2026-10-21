@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { addToCartFromForm, toggleWishlistForm } from "@/app/actions/marketplace";
+import { useCartPrompt } from "@/components/cart-prompt";
+import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 export function WishlistButton({ productId, wished }: { productId: string; wished?: boolean }) {
@@ -33,17 +35,19 @@ export function WishlistButton({ productId, wished }: { productId: string; wishe
 export function QuickAddButton({
   productId,
   variantId,
+  name,
 }: {
   productId: string;
   variantId?: string;
+  name?: string;
 }) {
   const [pending, start] = useTransition();
   const [done, setDone] = useState(false);
+  const prompt = useCartPrompt();
 
   return (
     <button
       type="button"
-      aria-label="Add to cart"
       disabled={pending}
       onClick={() => {
         const data = new FormData();
@@ -54,13 +58,46 @@ export function QuickAddButton({
           const result = await addToCartFromForm(data);
           if (!result?.error) {
             setDone(true);
+            prompt.show({ name });
             window.setTimeout(() => setDone(false), 1600);
           }
         });
       }}
-      className="tap-target absolute bottom-3 right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-gold text-2xl font-bold text-navy shadow-md hover:bg-gold-dark"
+      className="tap-target mt-2 inline-flex w-full items-center justify-center rounded-full bg-gold px-3 py-2 text-xs font-semibold text-navy hover:bg-gold-dark disabled:opacity-60 sm:text-sm"
     >
-      {done ? "✓" : "+"}
+      {pending ? "Adding…" : done ? "Added" : "Add to cart"}
     </button>
+  );
+}
+
+export function AddToCartButton({
+  productId,
+  variantId,
+  name,
+}: {
+  productId: string;
+  variantId?: string;
+  name: string;
+}) {
+  const [pending, start] = useTransition();
+  const prompt = useCartPrompt();
+
+  return (
+    <Button
+      type="button"
+      disabled={pending}
+      onClick={() => {
+        const data = new FormData();
+        data.set("productId", productId);
+        if (variantId) data.set("variantId", variantId);
+        data.set("quantity", "1");
+        start(async () => {
+          const result = await addToCartFromForm(data);
+          if (!result?.error) prompt.show({ name });
+        });
+      }}
+    >
+      {pending ? "Adding…" : "Add to cart"}
+    </Button>
   );
 }

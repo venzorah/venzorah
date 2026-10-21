@@ -186,6 +186,8 @@ model VendorProfile {
   country            String    @default("GB")
   city               String?
   postcode           String?
+  sellerType         String    @default("INDIVIDUAL")
+  companyNumber      String?
   kycStatus          String    @default("UNVERIFIED")
   payoutEligible     Boolean   @default(false)
   canPublish         Boolean   @default(true)
@@ -213,15 +215,28 @@ model VendorProfile {
 }
 
 model KycSubmission {
-  id         String   @id @default(cuid())
-  vendorId   String
-  status     String   @default("PENDING")
-  notes      String?
-  documentRefs String
-  submittedAt DateTime @default(now())
-  reviewedAt DateTime?
-  reviewerId String?
-  vendor     VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  vendorId          String
+  kind              String   @default("person")
+  provider          String   @default("sylmera")
+  providerSessionId String?  @unique
+  providerStatus    String?
+  decision          String?
+  hostedUrl         String?
+  resultJson        String?
+  status            String   @default("PENDING")
+  notes             String?
+  documentRefs      String   @default("")
+  submittedAt       DateTime @default(now())
+  reviewedAt        DateTime?
+  reviewerId        String?
+  vendor            VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+model WebhookReceipt {
+  id        String   @id
+  source    String
+  createdAt DateTime @default(now())
 }
 
 model Category {

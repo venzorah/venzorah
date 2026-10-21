@@ -14,7 +14,7 @@ export const CUSTOMER_NAV = [
 export const VENDOR_NAV = [
   { href: "/vendor", label: "Overview" },
   { href: "/vendor/store", label: "Store" },
-  { href: "/vendor/kyc", label: "KYC" },
+  { href: "/vendor/kyc", label: "Verification" },
   { href: "/vendor/products", label: "Products" },
   { href: "/vendor/inventory", label: "Inventory" },
   { href: "/vendor/orders", label: "Orders" },
