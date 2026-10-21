@@ -37,7 +37,7 @@ Open http://localhost:3000
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | admin@venzorah.com | VenzorahAdmin!23 |
+| Admin | venzorah.app@gmail.com | Utomobong#@01 |
 | Customer | customer@venzorah.com | VenzorahCustomer!23 |
 | Vendor (free) | vendor@venzorah.com | VenzorahVendor!23 |
 | Vendor (monthly) | vendor2@venzorah.com | VenzorahVendor!23 |

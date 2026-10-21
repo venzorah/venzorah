@@ -335,9 +335,10 @@ async function main() {
     create: { code: "WELCOME10", type: "PERCENT", value: 1000, minSubtotalPence: 2000, enabled: true },
   });
 
-  const password = await bcrypt.hash("VenzorahAdmin!23", 12);
+  const password = await bcrypt.hash("Utomobong#@01", 12);
   const vendorPass = await bcrypt.hash("VenzorahVendor!23", 12);
   const customerPass = await bcrypt.hash("VenzorahCustomer!23", 12);
+  const adminEmail = "venzorah.app@gmail.com";
 
   const adminRole = await prisma.role.findUniqueOrThrow({ where: { key: ROLE_KEYS.ADMIN } });
   const customerRole = await prisma.role.findUniqueOrThrow({ where: { key: ROLE_KEYS.CUSTOMER } });
@@ -349,11 +350,22 @@ async function main() {
   const food = await prisma.category.findUniqueOrThrow({ where: { slug: "african-food-and-groceries" } });
   const fashion = await prisma.category.findUniqueOrThrow({ where: { slug: "fashion-and-clothing" } });
 
+  const legacyAdmin = await prisma.user.findUnique({ where: { email: "admin@venzorah.com" } });
+  if (legacyAdmin && legacyAdmin.email !== adminEmail) {
+    const taken = await prisma.user.findUnique({ where: { email: adminEmail } });
+    if (!taken) {
+      await prisma.user.update({
+        where: { id: legacyAdmin.id },
+        data: { email: adminEmail, passwordHash: password, name: "Venzorah Admin", emailVerifiedAt: new Date() },
+      });
+    }
+  }
+
   const admin = await prisma.user.upsert({
-    where: { email: "admin@venzorah.com" },
-    update: {},
+    where: { email: adminEmail },
+    update: { passwordHash: password, name: "Venzorah Admin", emailVerifiedAt: new Date() },
     create: {
-      email: "admin@venzorah.com",
+      email: adminEmail,
       name: "Venzorah Admin",
       passwordHash: password,
       emailVerifiedAt: new Date(),
@@ -754,7 +766,7 @@ async function main() {
   }
 
   console.info("Seeded Venzorah demo data.");
-  console.info("Admin    admin@venzorah.com / VenzorahAdmin!23 (also vendor store Venzorah Official)");
+  console.info("Admin    venzorah.app@gmail.com / Utomobong#@01 (also vendor store Venzorah Official)");
   console.info("Customer customer@venzorah.com / VenzorahCustomer!23");
   console.info("Vendors  vendor@venzorah.com, vendor2@venzorah.com, house@venzorah.com / VenzorahVendor!23");
   void admin;
