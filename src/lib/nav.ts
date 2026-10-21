@@ -1,0 +1,48 @@
+export const CUSTOMER_NAV = [
+  { href: "/account", label: "Overview" },
+  { href: "/account/orders", label: "Orders" },
+  { href: "/account/addresses", label: "Addresses" },
+  { href: "/account/wishlist", label: "Wishlist" },
+  { href: "/account/reviews", label: "Reviews" },
+  { href: "/account/notifications", label: "Notifications" },
+  { href: "/account/support", label: "Support" },
+  { href: "/account/profile", label: "Profile" },
+  { href: "/account/security", label: "Security" },
+  { href: "/account/privacy", label: "Privacy" },
+];
+
+export const VENDOR_NAV = [
+  { href: "/vendor", label: "Overview" },
+  { href: "/vendor/store", label: "Store" },
+  { href: "/vendor/kyc", label: "KYC" },
+  { href: "/vendor/products", label: "Products" },
+  { href: "/vendor/inventory", label: "Inventory" },
+  { href: "/vendor/orders", label: "Orders" },
+  { href: "/vendor/shipping", label: "Shipping" },
+  { href: "/vendor/subscription", label: "Subscription" },
+  { href: "/vendor/earnings", label: "Earnings" },
+  { href: "/vendor/payouts", label: "Payouts" },
+  { href: "/vendor/reviews", label: "Reviews" },
+  { href: "/vendor/inquiries", label: "Inquiries" },
+  { href: "/vendor/promotions", label: "Promotions" },
+  { href: "/vendor/notifications", label: "Notifications" },
+];
+
+export const ADMIN_NAV = [
+  { href: "/admin", label: "Overview" },
+  { href: "/admin/customers", label: "Customers" },
+  { href: "/admin/vendors", label: "Vendors" },
+  { href: "/admin/categories", label: "Categories" },
+  { href: "/admin/products", label: "Moderation" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/plans", label: "Plans" },
+  { href: "/admin/reminders", label: "Reminders" },
+  { href: "/admin/payouts", label: "Payouts" },
+  { href: "/admin/promotions", label: "Promotions" },
+  { href: "/admin/cms", label: "CMS" },
+  { href: "/admin/support", label: "Support" },
+  { href: "/admin/permissions", label: "Permissions" },
+  { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/audit", label: "Audit log" },
+  { href: "/admin/reports", label: "Reports" },
+];

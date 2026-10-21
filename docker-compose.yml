@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: venzorah
+      POSTGRES_PASSWORD: venzorah
+      POSTGRES_DB: venzorah
+    ports:
+      - "5432:5432"
+    volumes:
+      - venzorah_pg:/var/lib/postgresql/data
+
+volumes:
+  venzorah_pg:
