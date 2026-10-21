@@ -244,6 +244,19 @@ export function StorefrontFooter() {
           </div>
         </div>
       </div>
+
+      <div className="border-t border-white/10">
+        <p className="mx-auto max-w-7xl px-4 py-4 text-[13px] text-white/70">
+          <a
+            href="https://wa.me/2347039340610"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-white"
+          >
+            Designed by KM Consulting & Tech
+          </a>
+        </p>
+      </div>
     </footer>
   );
 }
