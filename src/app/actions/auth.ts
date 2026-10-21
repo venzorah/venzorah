@@ -35,22 +35,28 @@ export async function registerCustomer(formData: FormData) {
   if (!parsed.success) return { error: "Check your name, email and a 10+ character password." };
   const exists = await prisma.user.findUnique({ where: { email: parsed.data.email } });
   if (exists) return { error: "An account already exists for that email." };
-  const user = await prisma.user.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email,
-      passwordHash: await hashPassword(parsed.data.password),
-      customer: { create: {} },
-      roles: { create: { role: { connect: { key: ROLE_KEYS.CUSTOMER } } } },
-    },
-  });
-  const token = await createAuthToken(user.id, "VERIFY_EMAIL");
-  await sendTemplatedEmail(user.email, "verify-email", {
-    name: user.name,
-    link: `${process.env.APP_URL ?? "http://localhost:3000"}/verify-email?token=${token}`,
-  });
-  await notify(user.id, "Verify your email", "Please confirm your email to keep your account secure.");
-  await createSession(user.id);
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash: await hashPassword(parsed.data.password),
+        customer: { create: {} },
+        roles: { create: { role: { connect: { key: ROLE_KEYS.CUSTOMER } } } },
+      },
+    });
+    const token = await createAuthToken(user.id, "VERIFY_EMAIL");
+    await sendTemplatedEmail(user.email, "verify-email", {
+      name: user.name,
+      link: `${process.env.APP_URL ?? "http://localhost:3000"}/verify-email?token=${token}`,
+    }).catch(() => undefined);
+    await notify(user.id, "Verify your email", "Please confirm your email to keep your account secure.").catch(
+      () => undefined,
+    );
+    await createSession(user.id);
+  } catch {
+    return { error: "Could not create that account on the live database. Try again in a moment." };
+  }
   redirect("/account");
 }
 
@@ -70,39 +76,43 @@ export async function registerVendor(formData: FormData) {
   if (!parsed.success || storeName.length < 2) return { error: "Complete all vendor registration fields." };
   const exists = await prisma.user.findUnique({ where: { email: parsed.data.email } });
   if (exists) return { error: "An account already exists for that email." };
-  const free = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { key: "free" } });
-  const periodEnd = new Date();
-  periodEnd.setFullYear(periodEnd.getFullYear() + 10);
-  const user = await prisma.user.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email,
-      passwordHash: await hashPassword(parsed.data.password),
-      customer: { create: {} },
-      roles: {
-        create: [
-          { role: { connect: { key: ROLE_KEYS.CUSTOMER } } },
-          { role: { connect: { key: ROLE_KEYS.VENDOR } } },
-        ],
-      },
-      vendor: {
-        create: {
-          storeName,
-          storeSlug: slugify(storeName) + "-" + Math.random().toString(36).slice(2, 6),
-          country,
-          subscriptions: {
-            create: {
-              planId: free.id,
-              status: "ACTIVE",
-              currentPeriodEnd: periodEnd,
-              provider: "none",
+  try {
+    const free = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { key: "free" } });
+    const periodEnd = new Date();
+    periodEnd.setFullYear(periodEnd.getFullYear() + 10);
+    const user = await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash: await hashPassword(parsed.data.password),
+        customer: { create: {} },
+        roles: {
+          create: [
+            { role: { connect: { key: ROLE_KEYS.CUSTOMER } } },
+            { role: { connect: { key: ROLE_KEYS.VENDOR } } },
+          ],
+        },
+        vendor: {
+          create: {
+            storeName,
+            storeSlug: slugify(storeName) + "-" + Math.random().toString(36).slice(2, 6),
+            country,
+            subscriptions: {
+              create: {
+                planId: free.id,
+                status: "ACTIVE",
+                currentPeriodEnd: periodEnd,
+                provider: "none",
+              },
             },
           },
         },
       },
-    },
-  });
-  await createSession(user.id);
+    });
+    await createSession(user.id);
+  } catch {
+    return { error: "Could not create that seller account on the live database. Try again in a moment." };
+  }
   redirect("/vendor/kyc");
 }
 

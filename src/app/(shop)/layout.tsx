@@ -6,7 +6,7 @@ import { StorefrontMobileNav } from "@/components/mobile-nav";
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
   await connection();
   return (
-    <div className="flex min-h-dvh flex-col pb-16 lg:pb-0">
+    <div className="flex min-h-dvh flex-col pb-20 lg:pb-0">
       <Suspense fallback={<div className="h-24 bg-navy" />}>
         <StorefrontHeader />
       </Suspense>

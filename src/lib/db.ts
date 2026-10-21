@@ -18,7 +18,10 @@ function resolveDatabaseUrl() {
     path.join(process.cwd(), "prisma", "dev.db"),
     path.join(process.cwd(), "dev.db"),
   ].find((candidate) => existsSync(candidate));
-  if (bundled) copyFileSync(bundled, tmpPath);
+  // Only seed /tmp once per instance. Overwriting on every boot deleted new customer and seller accounts.
+  if (bundled && !existsSync(tmpPath)) {
+    copyFileSync(bundled, tmpPath);
+  }
   return `file:${tmpPath}`;
 }
 
@@ -33,4 +36,4 @@ export const prisma =
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+globalForPrisma.prisma = prisma;

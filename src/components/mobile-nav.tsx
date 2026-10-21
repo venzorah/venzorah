@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Shop" },
+  { href: "/categories", label: "Categories" },
   { href: "/cart", label: "Cart" },
   { href: "/account", label: "Account" },
 ];
@@ -18,19 +19,24 @@ export function StorefrontMobileNav() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       aria-label="Primary"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-4">
+      <ul className="mx-auto grid max-w-lg grid-cols-5">
         {ITEMS.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active =
+            item.href === "/"
+              ? pathname === "/"
+              : item.href === "/categories"
+                ? pathname === "/categories" || pathname.startsWith("/c/")
+                : pathname.startsWith(item.href);
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
                 className={cn(
-                  "tap-target flex flex-col items-center justify-center px-1 py-2 text-xs font-semibold",
+                  "tap-target flex min-h-14 flex-col items-center justify-center px-1 py-3 text-[13px] font-semibold",
                   active ? "text-ink" : "text-muted",
                 )}
               >
-                <span className={cn("h-1 w-6 rounded-full", active ? "bg-gold" : "bg-transparent")} />
+                <span className={cn("mb-0.5 h-1.5 w-7 rounded-full", active ? "bg-gold" : "bg-transparent")} />
                 {item.label}
               </Link>
             </li>
