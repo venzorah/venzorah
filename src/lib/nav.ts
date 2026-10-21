@@ -30,6 +30,7 @@ export const VENDOR_NAV = [
 
 export const ADMIN_NAV = [
   { href: "/admin", label: "Overview" },
+  { href: "/vendor", label: "Vendor store" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/vendors", label: "Vendors" },
   { href: "/admin/categories", label: "Categories" },

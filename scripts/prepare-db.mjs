@@ -1,3 +1,5 @@
+import { copyFileSync, existsSync } from "node:fs";
+import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 if (!process.env.DATABASE_URL) {
@@ -17,6 +19,15 @@ function run(command, args) {
 
 run("npx", ["prisma", "db", "push", "--skip-generate"]);
 
-if (process.env.VERCEL && process.env.DATABASE_URL.startsWith("file:")) {
+const skipSeed = process.env.SKIP_DEMO_SEED === "1";
+if (!skipSeed) {
   run("npx", ["prisma", "db", "seed"]);
+}
+
+if (process.env.DATABASE_URL.startsWith("file:")) {
+  const fromPrisma = path.join(process.cwd(), "prisma", "dev.db");
+  const fromRoot = path.join(process.cwd(), "dev.db");
+  if (existsSync(fromPrisma) && !existsSync(fromRoot)) {
+    copyFileSync(fromPrisma, fromRoot);
+  }
 }

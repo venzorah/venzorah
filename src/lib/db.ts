@@ -14,13 +14,11 @@ function resolveDatabaseUrl() {
   }
 
   const tmpPath = "/tmp/venzorah.db";
-  if (!existsSync(tmpPath)) {
-    const bundled = [
-      path.join(process.cwd(), "prisma", "dev.db"),
-      path.join(process.cwd(), "dev.db"),
-    ].find((candidate) => existsSync(candidate));
-    if (bundled) copyFileSync(bundled, tmpPath);
-  }
+  const bundled = [
+    path.join(process.cwd(), "prisma", "dev.db"),
+    path.join(process.cwd(), "dev.db"),
+  ].find((candidate) => existsSync(candidate));
+  if (bundled) copyFileSync(bundled, tmpPath);
   return `file:${tmpPath}`;
 }
 

@@ -12,7 +12,7 @@ export async function StorefrontHeader() {
   const categories = await prisma.category.findMany({
     where: { enabled: true, parentId: null },
     orderBy: { sortOrder: "asc" },
-    take: 8,
+    take: 24,
   });
   const cartCount = user
     ? await prisma.cartItem.count({ where: { cart: { userId: user.id } } })

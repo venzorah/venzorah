@@ -116,6 +116,32 @@ const CATEGORIES: {
   { name: "Other Approved African Products" },
 ];
 
+const CATALOG_LISTINGS: { category: string; name: string; price: number; description: string }[] = [
+  { category: "African Food and Groceries", name: "Smoked crayfish 100g", price: 495, description: "Sun-dried crayfish for soups and stews." },
+  { category: "Fashion and Clothing", name: "Dashiki cotton shirt", price: 2800, description: "Relaxed-fit embroidered dashiki for everyday wear." },
+  { category: "Traditional and Cultural Wear", name: "Aso-oke headwrap", price: 1850, description: "Woven aso-oke gele ready for ceremonies." },
+  { category: "Footwear", name: "Leather sandals UK 7", price: 3200, description: "Hand-finished leather sandals in UK size 7." },
+  { category: "Bags and Accessories", name: "Kente tote bag", price: 1650, description: "Sturdy tote with kente-inspired panels." },
+  { category: "Beauty and Skincare", name: "Raw shea butter 250ml", price: 899, description: "Unrefined shea butter for skin and hair." },
+  { category: "Hair Products and Hair Accessories", name: "Black soap shampoo bar", price: 650, description: "African black soap bar for scalp and coils." },
+  { category: "Jewellery", name: "Beaded statement necklace", price: 2400, description: "Hand-strung beads in gold and navy." },
+  { category: "Home and Living", name: "Wax-print cushion cover", price: 1295, description: "Cotton cushion cover in Ankara print." },
+  { category: "Furniture and Furnishings", name: "Folding okrika stool", price: 4500, description: "Compact wooden stool with carved sides." },
+  { category: "Art and Handmade Crafts", name: "Calabash bead bowl", price: 2100, description: "Decorated calabash bowl from a UK-based maker." },
+  { category: "African Artwork and Decor", name: "Adinkra wall print", price: 1750, description: "Framed adinkra symbol print for home walls." },
+  { category: "Books and Educational Materials", name: "West African recipes handbook", price: 1299, description: "Illustrated cookbook for UK kitchens." },
+  { category: "Music and Entertainment Products", name: "Djembe practice pad", price: 1995, description: "Quiet practice pad for djembe rhythms." },
+  { category: "Electronics and Technology Accessories", name: "Ankara laptop sleeve 13in", price: 1895, description: "Padded sleeve for 13-inch laptops." },
+  { category: "Health and Personal Care Products", name: "Neem toothpaste 100ml", price: 495, description: "Herbal neem toothpaste for daily care." },
+  { category: "Agricultural Products and Supplies", name: "Heirloom okra seeds pack", price: 395, description: "Okra seeds for UK garden growers." },
+  { category: "Kitchenware and Household Goods", name: "Wooden mortar and pestle", price: 2750, description: "Hardwood mortar for pounding spices." },
+  { category: "Baby and Children's Products", name: "Ankara baby bib set", price: 895, description: "Two cotton bibs in mixed African prints." },
+  { category: "Sports and Fitness", name: "Resistance band set", price: 1195, description: "Three bands for home workouts." },
+  { category: "Gifts and Souvenirs", name: "Ghana flag enamel pin", price: 450, description: "Gift pin with a UK-ready backing card." },
+  { category: "Business and Office Supplies", name: "Ankara A5 notebook", price: 795, description: "Lined notebook with wax-print cover." },
+  { category: "Other Approved African Products", name: "Multi-purpose shea balm", price: 695, description: "Travel tin of shea balm for lips and hands." },
+];
+
 async function main() {
   for (const perm of PERMISSIONS) {
     await prisma.permission.upsert({
@@ -212,12 +238,18 @@ async function main() {
   for (const cat of CATEGORIES) {
     const row = await prisma.category.upsert({
       where: { slug: slugify(cat.name) },
-      update: { featured: Boolean(cat.featured), sortOrder: i, image: CATEGORY_IMAGES[cat.name] },
+      update: {
+        featured: Boolean(cat.featured),
+        sortOrder: i,
+        image: CATEGORY_IMAGES[cat.name],
+        enabled: true,
+      },
       create: {
         name: cat.name,
         slug: slugify(cat.name),
         featured: Boolean(cat.featured),
         sortOrder: i,
+        enabled: true,
         image: CATEGORY_IMAGES[cat.name],
         description: `Shop ${cat.name} from African vendors on Venzorah.`,
       },
@@ -313,6 +345,7 @@ async function main() {
   const verifiedRole = await prisma.role.findUniqueOrThrow({ where: { key: ROLE_KEYS.VERIFIED_VENDOR } });
   const free = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { key: "free" } });
   const monthly = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { key: "monthly" } });
+  const annual = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { key: "annual" } });
   const food = await prisma.category.findUniqueOrThrow({ where: { slug: "african-food-and-groceries" } });
   const fashion = await prisma.category.findUniqueOrThrow({ where: { slug: "fashion-and-clothing" } });
 
@@ -408,8 +441,84 @@ async function main() {
     },
   });
 
+  async function ensureRole(userId: string, roleId: string) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId, roleId } },
+      update: {},
+      create: { userId, roleId },
+    });
+  }
+
+  await ensureRole(admin.id, adminRole.id);
+  await ensureRole(admin.id, customerRole.id);
+  await ensureRole(admin.id, vendorRole.id);
+  await ensureRole(admin.id, verifiedRole.id);
+
+  const official = await prisma.vendorProfile.upsert({
+    where: { userId: admin.id },
+    update: {
+      storeName: "Venzorah Official",
+      kycStatus: "APPROVED",
+      payoutEligible: true,
+      canPublish: true,
+      sellerType: "BUSINESS",
+      status: "ACTIVE",
+    },
+    create: {
+      userId: admin.id,
+      storeName: "Venzorah Official",
+      storeSlug: "venzorah-official",
+      businessName: "Venzorah Ltd",
+      description: "Official Venzorah house listings across every category.",
+      kycStatus: "APPROVED",
+      payoutEligible: true,
+      sellerType: "BUSINESS",
+      city: "London",
+      postcode: "EC1A 1BB",
+      subscriptions: {
+        create: { planId: annual.id, status: "ACTIVE", currentPeriodEnd: longEnd, provider: "none" },
+      },
+    },
+  });
+  if ((await prisma.vendorSubscription.count({ where: { vendorId: official.id } })) === 0) {
+    await prisma.vendorSubscription.create({
+      data: { vendorId: official.id, planId: annual.id, status: "ACTIVE", currentPeriodEnd: longEnd, provider: "none" },
+    });
+  }
+
+  const houseUser = await prisma.user.upsert({
+    where: { email: "house@venzorah.com" },
+    update: {},
+    create: {
+      email: "house@venzorah.com",
+      name: "Accra House",
+      passwordHash: vendorPass,
+      emailVerifiedAt: new Date(),
+      customer: { create: {} },
+      roles: { create: [{ roleId: customerRole.id }, { roleId: vendorRole.id }, { roleId: verifiedRole.id }] },
+      vendor: {
+        create: {
+          storeName: "Accra House UK",
+          storeSlug: "accra-house-uk",
+          description: "A UK warehouse vendor listing African products in every Venzorah category.",
+          kycStatus: "APPROVED",
+          payoutEligible: true,
+          sellerType: "BUSINESS",
+          city: "Birmingham",
+          postcode: "B1 1AA",
+          subscriptions: {
+            create: { planId: annual.id, status: "ACTIVE", currentPeriodEnd: longEnd, provider: "none" },
+          },
+        },
+      },
+    },
+  });
+  await ensureRole(houseUser.id, vendorRole.id);
+  await ensureRole(houseUser.id, verifiedRole.id);
+
   const v1 = await prisma.vendorProfile.findUniqueOrThrow({ where: { userId: vendorUser.id } });
   const v2 = await prisma.vendorProfile.findUniqueOrThrow({ where: { userId: vendor2.id } });
+  const house = await prisma.vendorProfile.findUniqueOrThrow({ where: { userId: houseUser.id } });
   await prisma.vendorProfile.update({
     where: { id: v1.id },
     data: { storeName: "Mama Ada's Pantry Ltd" },
@@ -443,6 +552,32 @@ async function main() {
       code: "STANDARD",
       carrier: "UPS",
       pricePence: 695,
+    },
+  });
+  await prisma.shippingMethod.upsert({
+    where: { id: "seed-ship-official" },
+    update: { vendorId: official.id },
+    create: {
+      id: "seed-ship-official",
+      vendorId: official.id,
+      zoneId: uk.id,
+      name: "Royal Mail Tracked 24",
+      code: "EXPRESS",
+      carrier: "Royal Mail",
+      pricePence: 595,
+    },
+  });
+  await prisma.shippingMethod.upsert({
+    where: { id: "seed-ship-house" },
+    update: { vendorId: house.id },
+    create: {
+      id: "seed-ship-house",
+      vendorId: house.id,
+      zoneId: uk.id,
+      name: "Evri Standard",
+      code: "STANDARD",
+      carrier: "Evri",
+      pricePence: 395,
     },
   });
 
@@ -604,10 +739,24 @@ async function main() {
     image: "/slides/slide-fashion.jpg",
   });
 
+  for (const [index, listing] of CATALOG_LISTINGS.entries()) {
+    const category = await prisma.category.findUniqueOrThrow({ where: { slug: slugify(listing.category) } });
+    await product({
+      vendorId: index % 2 === 0 ? house.id : official.id,
+      categoryId: category.id,
+      name: listing.name,
+      price: listing.price,
+      stock: 20 + index,
+      description: listing.description,
+      image: CATEGORY_IMAGES[listing.category] ?? "/slides/slide-market.jpg",
+      featured: index < 6,
+    });
+  }
+
   console.info("Seeded Venzorah demo data.");
-  console.info("Admin    admin@venzorah.com / VenzorahAdmin!23");
+  console.info("Admin    admin@venzorah.com / VenzorahAdmin!23 (also vendor store Venzorah Official)");
   console.info("Customer customer@venzorah.com / VenzorahCustomer!23");
-  console.info("Vendors  vendor@venzorah.com and vendor2@venzorah.com / VenzorahVendor!23");
+  console.info("Vendors  vendor@venzorah.com, vendor2@venzorah.com, house@venzorah.com / VenzorahVendor!23");
   void admin;
   void customer;
 }
