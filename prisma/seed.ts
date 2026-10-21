@@ -9,9 +9,10 @@ import {
   VENDOR_PERMISSIONS,
 } from "../src/lib/permissions";
 import { DEFAULT_SETTINGS } from "../src/lib/settings";
+import { resolveDatabaseUrl } from "../src/lib/database-url";
 import { slugify } from "../src/lib/utils";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: resolveDatabaseUrl() });
 
 const CATEGORY_IMAGES: Record<string, string> = {
   "African Food and Groceries": "/categories/cat-food.jpg",
@@ -795,7 +796,7 @@ export async function seedDemoData() {
   void customer;
 }
 
-const isCli = Boolean(process.argv[1] && /[\\/]seed\.(ts|js)$/.test(process.argv[1]));
+const isCli = process.argv.some((arg) => /(?:^|[\\/])seed\.(ts|js)$/.test(arg));
 if (isCli) {
   seedDemoData()
     .then(() => prisma.$disconnect())

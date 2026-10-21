@@ -1,4 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "node scripts/prepare-db.mjs && next build"
+  "buildCommand": "node scripts/vercel-build.mjs"
 }
