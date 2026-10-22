@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from "jose";
 import { prisma } from "./db";
 import { createSession } from "./auth";
+import { takeAuthReturn } from "./auth-return";
 import { ROLE_KEYS } from "./permissions";
 
 export const OAUTH_PROVIDERS = ["google", "facebook", "apple"] as const;
@@ -276,6 +277,14 @@ export async function finishOAuth(provider: OAuthProvider, code: string | null, 
 
   if (user.status === "SUSPENDED") redirect(oauthErrorPath("oauth_suspended", portal));
   await createSession(user.id, 30);
+  try {
+    const { mergeGuestCart } = await import("./store-checkout");
+    await mergeGuestCart(user.id);
+  } catch (error) {
+    console.error("[cart] guest basket was not merged", error instanceof Error ? error.message : error);
+  }
+  const next = await takeAuthReturn();
+  if (next) redirect(next);
   const keys = user.roles.map((r) => r.role.key);
   if (portal === "seller") {
     if (keys.includes(ROLE_KEYS.VENDOR) || keys.includes(ROLE_KEYS.ADMIN)) redirect("/vendor");

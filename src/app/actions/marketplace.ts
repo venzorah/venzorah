@@ -180,14 +180,36 @@ export async function deleteAddress(id: string) {
 
 export async function updateProfile(formData: FormData) {
   const user = await requirePermission("customer.profile.edit");
+  const name = String(formData.get("name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const email = String(formData.get("email") ?? "").toLowerCase().trim();
+  if (name.length < 2) return { error: "Enter your name." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email." };
+  const current = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!current) return { error: "Profile changes need the live database." };
+  const taken = await prisma.user.findFirst({ where: { email, NOT: { id: user.id } }, select: { id: true } });
+  if (taken) return { error: "That email is already used by another account." };
+  let image: string | undefined;
+  const picture = formData.get("picture");
+  if (picture instanceof File && picture.size > 0) {
+    try {
+      image = await savePublicUpload(picture, "avatars");
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "That picture could not be saved." };
+    }
+  }
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      name: String(formData.get("name") ?? user.name),
-      phone: String(formData.get("phone") ?? "") || null,
+      name,
+      phone: phone || null,
+      email,
+      emailVerifiedAt: email === current.email ? current.emailVerifiedAt : null,
+      ...(image ? { image } : {}),
     },
   });
   revalidatePath("/account/profile");
+  revalidatePath("/account");
 }
 
 export async function checkoutAction(formData: FormData) {

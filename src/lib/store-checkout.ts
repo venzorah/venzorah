@@ -50,11 +50,6 @@ export async function mergeGuestCart(userId: string) {
 }
 
 export async function storeCartLines(user: AuthUser | null): Promise<StoreLine[]> {
-  if (user && !isDemoActor(user)) {
-    await mergeGuestCart(user.id).catch((error) => {
-      console.error("[cart] guest basket was not merged", error instanceof Error ? error.message : error);
-    });
-  }
   const demo = await demoCartLines();
   const guest = await guestCartLines();
   if (!user || isDemoActor(user)) return [...guest, ...demo];

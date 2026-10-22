@@ -1,3 +1,5 @@
+export const AUTH_RETURN_COOKIE = "venzorah_return";
+
 /** Same-site path only. Rejects protocol-relative and backslash redirects. */
 export function safeNextPath(value: unknown): string | null {
   if (typeof value !== "string") return null;

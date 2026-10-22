@@ -14,11 +14,20 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { isDatabaseFailure, matchDemoAccount, sessionDestination } from "@/lib/demo-access";
-import { safeNextPath } from "@/lib/safe-next";
+import { clearAuthReturn, peekAuthReturn, takeAuthReturn } from "@/lib/auth-return";
 import { ROLE_KEYS } from "@/lib/permissions";
 import { audit, notify, sendTemplatedEmail } from "@/lib/audit";
 import { slugify } from "@/lib/utils";
 import { getSetting, truthy } from "@/lib/settings";
+
+async function adoptGuestBasket(userId: string) {
+  try {
+    const { mergeGuestCart } = await import("@/lib/store-checkout");
+    await mergeGuestCart(userId);
+  } catch (error) {
+    console.error("[cart] guest basket was not merged", error instanceof Error ? error.message : error);
+  }
+}
 
 const registerSchema = z.object({
   name: z.string().min(2).max(80),
@@ -38,6 +47,7 @@ export async function registerCustomer(formData: FormData) {
   if (!parsed.success) return { error: "Check your name, email and a 10+ character password." };
   const exists = await prisma.user.findUnique({ where: { email: parsed.data.email } });
   if (exists) return { error: "An account already exists for that email." };
+  let userId: string | null = null;
   try {
     const user = await prisma.user.create({
       data: {
@@ -57,10 +67,12 @@ export async function registerCustomer(formData: FormData) {
       () => undefined,
     );
     await createSession(user.id);
+    userId = user.id;
   } catch {
     return { error: "Could not create that account on the live database. Try again in a moment." };
   }
-  redirect(safeNextPath(formData.get("next")) ?? "/account");
+  if (userId) await adoptGuestBasket(userId);
+  redirect((await takeAuthReturn(formData.get("next"))) ?? "/account");
 }
 
 export async function registerVendor(formData: FormData) {
@@ -126,7 +138,7 @@ export async function loginAction(formData: FormData) {
   const remember = String(formData.get("remember") ?? "") === "on";
   const portal = String(formData.get("portal") ?? "buyer");
   const days = remember ? 30 : 7;
-  const next = safeNextPath(formData.get("next"));
+  const next = await peekAuthReturn(formData.get("next"));
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
@@ -144,6 +156,8 @@ export async function loginAction(formData: FormData) {
       return { error: "This sign-in is for Venzorah staff only. Use the customer or seller login." };
     }
     await createSession(user.id, days);
+    await adoptGuestBasket(user.id);
+    await clearAuthReturn();
     redirect(next ?? sessionDestination(keys, portal));
   } catch (error) {
     unstable_rethrow(error);
@@ -159,6 +173,7 @@ export async function loginAction(formData: FormData) {
     return { error: "This sign-in is for Venzorah staff only. Use the customer or seller login." };
   }
   await createDemoSession(demo.id, days);
+  await clearAuthReturn();
   redirect(next ?? sessionDestination(demo.roles, portal));
 }
 
