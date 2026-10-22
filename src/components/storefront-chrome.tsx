@@ -188,11 +188,11 @@ export function StorefrontFooter() {
               { href: "/p/faq", label: "Help Centre" },
               { href: "/account/orders", label: "Track Your Order" },
               { href: "/p/contact", label: "Contact Us" },
-              { href: "/p/faq", label: "How to shop on Venzorah?" },
+              { href: "/p/how-to-shop", label: "How to shop on Venzorah?" },
               { href: "/p/shipping", label: "Delivery options and timelines" },
               { href: "/p/returns", label: "How to return a product on Venzorah?" },
-              { href: "/p/contact", label: "Corporate and bulk purchases" },
-              { href: "/p/contact", label: "Report a Product" },
+              { href: "/p/corporate", label: "Corporate and bulk purchases" },
+              { href: "/p/report", label: "Report a Product" },
             ]}
           />
         </div>
@@ -201,14 +201,14 @@ export function StorefrontFooter() {
           <FooterLinks
             items={[
               { href: "/p/about", label: "About us" },
-              { href: "/p/contact", label: "Venzorah careers" },
-              { href: "/p/shipping", label: "Venzorah Express" },
+              { href: "/p/careers", label: "Venzorah careers" },
+              { href: "/p/express", label: "Venzorah Express" },
               { href: "/p/terms", label: "Terms and Conditions" },
               { href: "/p/privacy", label: "Privacy Notice" },
               { href: "/p/returns", label: "Returns & Refund Policy" },
-              { href: "/p/privacy", label: "Cookie Policy" },
-              { href: "/p/subscription-terms", label: "Venzorah Store Credit Terms" },
-              { href: "/products", label: "Flash Sales" },
+              { href: "/p/cookies", label: "Cookie Policy" },
+              { href: "/p/store-credit", label: "Venzorah Store Credit Terms" },
+              { href: "/p/flash-sales", label: "Flash Sales" },
             ]}
           />
         </div>
@@ -219,8 +219,8 @@ export function StorefrontFooter() {
               { href: "/sell-on-venzorah", label: "Sell on Venzorah" },
               { href: "/vendor", label: "Vendor hub" },
               { href: "/sell-on-venzorah#register", label: "Become a Sales Consultant" },
-              { href: "/p/contact", label: "Become a Logistics Service Partner" },
-              { href: "/p/about", label: "Join the Venzorah Academy" },
+              { href: "/p/logistics", label: "Become a Logistics Service Partner" },
+              { href: "/p/academy", label: "Join the Venzorah Academy" },
             ]}
           />
         </div>
