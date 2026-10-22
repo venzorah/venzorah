@@ -34,12 +34,15 @@ export function ProductCard({
   product: ProductCardProduct;
   wished?: boolean;
 }) {
-  const price = product.salePricePence ?? product.pricePence;
+  const onSale = product.salePricePence != null && product.salePricePence < product.pricePence;
+  const price = onSale ? product.salePricePence! : product.pricePence;
+  const discount = onSale ? Math.round((1 - price / product.pricePence) * 100) : 0;
   const image = product.images[0];
   const rating = ratingSummary(product.reviews);
   const isNew =
-    product.featured ||
-    (product.createdAt ? Date.now() - new Date(product.createdAt).getTime() < 1000 * 60 * 60 * 24 * 45 : false);
+    !onSale &&
+    (product.featured ||
+      (product.createdAt ? Date.now() - new Date(product.createdAt).getTime() < 1000 * 60 * 60 * 24 * 45 : false));
 
   return (
     <article className="relative rounded-2xl bg-card p-2.5 shadow-sm ring-1 ring-border">
@@ -55,7 +58,11 @@ export function ProductCard({
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted">No image</div>
           )}
-          {isNew ? (
+          {onSale ? (
+            <span className="absolute left-3 top-3 rounded-md bg-gold px-2 py-0.5 text-[11px] font-bold text-navy">
+              -{discount}%
+            </span>
+          ) : isNew ? (
             <span className="absolute left-3 top-3 rounded-md bg-navy px-2 py-0.5 text-[11px] font-semibold text-white">
               New
             </span>
@@ -76,6 +83,7 @@ export function ProductCard({
             <p className="text-xs text-muted">No reviews yet</p>
           )}
           <p className="text-lg font-extrabold text-ink">{formatGbp(price)}</p>
+          {onSale ? <p className="text-xs text-muted line-through">{formatGbp(product.pricePence)}</p> : null}
           {packSize(product) ? <p className="text-xs text-muted">{packSize(product)}</p> : null}
         </div>
       </Link>

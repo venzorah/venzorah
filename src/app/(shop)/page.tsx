@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { ProductCard } from "@/components/product-card";
 import { HomeHero } from "@/components/home-hero";
 import { CategoryCarousel } from "@/components/category-carousel";
+import { ProductShelves } from "@/components/product-shelf";
 import { getSetting } from "@/lib/settings";
 import { getSessionUser } from "@/lib/auth";
 import { staticCategories } from "@/lib/category-display";
@@ -45,19 +44,7 @@ function HomeFallback() {
       <CategoryCarousel
         items={categories.map((category) => ({ name: category.name, slug: category.slug, image: category.image }))}
       />
-      <section className="mx-auto max-w-7xl px-4 pb-16">
-        <div className="mb-5 flex items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight text-ink">Products</h2>
-          <Link href="/products" className="text-sm text-muted hover:text-ink">
-            View all
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      </section>
+      <ProductShelves products={products} />
     </main>
   );
 }
@@ -78,10 +65,11 @@ async function HomeCatalog() {
         vendor: true,
         variants: true,
         attributes: true,
+        category: { select: { name: true, slug: true } },
         reviews: { where: { status: "PUBLISHED" }, select: { rating: true } },
       },
       orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
-      take: 10,
+      take: 80,
     }),
     user
       ? prisma.wishlistItem.findMany({ where: { userId: user.id }, select: { productId: true } })
@@ -106,7 +94,24 @@ async function HomeCatalog() {
     }));
 
   const categoryTiles = categories.length ? categories : staticCategories();
-  const productTiles = products.length ? products : demoProducts().slice(0, 10);
+  const catalog = products.length
+    ? products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        pricePence: product.pricePence,
+        salePricePence: product.salePricePence,
+        createdAt: product.createdAt,
+        featured: product.featured,
+        images: product.images,
+        vendor: { storeName: product.vendor.storeName, storeSlug: product.vendor.storeSlug },
+        variants: product.variants,
+        attributes: product.attributes,
+        reviews: product.reviews,
+        categoryName: product.category.name,
+        categorySlug: product.category.slug,
+      }))
+    : demoProducts();
 
   return (
     <main>
@@ -120,19 +125,7 @@ async function HomeCatalog() {
         }))}
       />
 
-      <section className="mx-auto max-w-7xl px-4 pb-16">
-        <div className="mb-5 flex items-end justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight text-ink">Products</h2>
-          <Link href="/products" className="text-sm text-muted hover:text-ink">
-            View all
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {productTiles.map((product) => (
-            <ProductCard key={product.id} product={product} wished={wishedIds.has(product.id)} />
-          ))}
-        </div>
-      </section>
+      <ProductShelves products={catalog} wishedIds={wishedIds} />
     </main>
   );
 }
