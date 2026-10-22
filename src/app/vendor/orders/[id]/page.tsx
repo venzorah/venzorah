@@ -17,7 +17,8 @@ export default async function VendorOrderDetail({ params }: { params: Promise<{ 
     <>
       <PageHeader title={vo.order.number} description={`Status ${vo.status}`} />
       <p className="text-sm">
-        Ship to {vo.order.shippingName}, {vo.order.shippingLine1}, {vo.order.shippingCity} {vo.order.shippingPostcode}
+        Ship to {vo.order.shippingName}, {vo.order.shippingLine1}, {vo.order.shippingCity}
+        {vo.order.shippingRegion ? `, ${vo.order.shippingRegion}` : ""} {vo.order.shippingPostcode}
       </p>
       {vo.items.map((i) => (
         <p key={i.id}>

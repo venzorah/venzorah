@@ -23,7 +23,10 @@ export default async function DemoStripePage() {
 
   return (
     <main className="mx-auto max-w-lg px-4 py-8">
-      <PageHeader title="Pay with demo Stripe" description={`${draft.shippingName} · ${draft.shippingPostcode}`} />
+      <PageHeader
+        title="Pay with demo Stripe"
+        description={`${draft.shippingName} · ${draft.shippingCity}${draft.shippingRegion ? `, ${draft.shippingRegion}` : ""} ${draft.shippingPostcode}`}
+      />
       <div className="mb-4 grid gap-1 text-sm">
         {draft.lines.map((line) => (
           <p key={`${line.name}-${line.quantity}-${line.unitPence}`}>

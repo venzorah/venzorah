@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useId, useState, type ReactNode } from "react";
 import { Button } from "./ui";
 
@@ -17,8 +18,13 @@ export function useCartPrompt() {
 export function CartPromptProvider({ children }: { children: ReactNode }) {
   const [prompt, setPrompt] = useState<CartPrompt | null>(null);
   const titleId = useId();
+  const pathname = usePathname();
   const show = useCallback((next?: CartPrompt) => setPrompt(next ?? {}), []);
   const close = useCallback(() => setPrompt(null), []);
+
+  useEffect(() => {
+    setPrompt(null);
+  }, [pathname]);
 
   useEffect(() => {
     if (!prompt) return;
@@ -44,7 +50,7 @@ export function CartPromptProvider({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="relative w-full max-w-sm rounded-3xl bg-card p-6 text-center shadow-xl ring-1 ring-border"
+            className="relative z-10 w-full max-w-sm rounded-3xl bg-card p-6 text-center shadow-xl ring-1 ring-border"
           >
             <p className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gold text-xl font-bold text-navy">
               ✓
@@ -58,6 +64,7 @@ export function CartPromptProvider({ children }: { children: ReactNode }) {
             <div className="mt-6 grid gap-2">
               <Link
                 href="/checkout"
+                onClick={close}
                 className="tap-target inline-flex items-center justify-center rounded-full bg-gold px-4 py-2.5 text-sm font-semibold text-navy hover:bg-gold-dark"
               >
                 Proceed to checkout

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatGbp } from "@/lib/money";
 import { toggleWishlist } from "@/app/actions/marketplace";
@@ -30,7 +31,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <div>
             <Badge>{product.category.name}</Badge>
             <h1 className="mt-3 text-3xl font-bold text-ink">{product.name}</h1>
-            <p className="mt-1 text-sm text-muted">Sold by {product.vendor.storeName}</p>
+            <StoreName name={product.vendor.storeName} slug={product.vendor.storeSlug} />
             <p className="mt-4 text-2xl font-extrabold">{formatGbp(price)}</p>
             <p className="mt-4 whitespace-pre-wrap text-sm leading-6">{product.description}</p>
             {product.attributes.length ? (
@@ -90,6 +91,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   return <DemoProductPage product={demo} />;
 }
 
+function StoreName({ name, slug }: { name: string; slug: string }) {
+  return (
+    <p className="mt-1 text-sm text-muted">
+      Sold by{" "}
+      <Link href={`/vendors/${slug}`} className="font-semibold text-navy underline-offset-2 hover:underline">
+        {name}
+      </Link>
+    </p>
+  );
+}
+
 function DemoProductPage({ product }: { product: DemoProduct }) {
   const price = product.salePricePence ?? product.pricePence;
   return (
@@ -98,7 +110,7 @@ function DemoProductPage({ product }: { product: DemoProduct }) {
       <div>
         <Badge>{product.categoryName}</Badge>
         <h1 className="mt-3 text-3xl font-bold text-ink">{product.name}</h1>
-        <p className="mt-1 text-sm text-muted">Sold by {product.vendor.storeName}</p>
+        <StoreName name={product.vendor.storeName} slug={product.vendor.storeSlug} />
         <p className="mt-4 text-2xl font-extrabold">{formatGbp(price)}</p>
         <p className="mt-4 whitespace-pre-wrap text-sm leading-6">{product.description}</p>
         {product.attributes?.length ? (

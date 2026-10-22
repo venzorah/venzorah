@@ -72,7 +72,13 @@ export async function storeCartLines(user: AuthUser | null): Promise<StoreLine[]
 
 export async function buildCheckoutDraft(
   user: AuthUser,
-  address: { shippingName: string; shippingLine1: string; shippingCity: string; shippingPostcode: string },
+  address: {
+    shippingName: string;
+    shippingLine1: string;
+    shippingCity: string;
+    shippingRegion?: string;
+    shippingPostcode: string;
+  },
   coupon?: string,
 ): Promise<{ error: string } | { draft: CheckoutDraft }> {
   if (!isDemoActor(user)) {

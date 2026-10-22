@@ -35,6 +35,10 @@ export default async function OrderDetailPage({
       <PageHeader title={order.number} description={paid ? "Payment confirmed." : undefined} />
       <div className="grid gap-2 text-sm">
         <p>Payment: {order.paymentStatus}</p>
+        <p>
+          Deliver to {order.shippingName}, {order.shippingLine1}, {order.shippingCity}
+          {order.shippingRegion ? `, ${order.shippingRegion}` : ""} {order.shippingPostcode}
+        </p>
         <p>Subtotal {formatGbp(order.subtotalPence)}</p>
         <p>Shipping {formatGbp(order.shippingPence)}</p>
         <p>Tax recorded {formatGbp(order.taxPence)} (not treated as platform revenue)</p>

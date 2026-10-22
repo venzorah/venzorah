@@ -114,6 +114,7 @@ type CheckoutInput = {
   shippingName: string;
   shippingLine1: string;
   shippingCity: string;
+  shippingRegion?: string;
   shippingPostcode: string;
   shippingCountry?: string;
   couponCode?: string;
@@ -248,6 +249,7 @@ export async function createOrderFromCart(input: CheckoutInput) {
         shippingName: input.shippingName,
         shippingLine1: input.shippingLine1,
         shippingCity: input.shippingCity,
+        shippingRegion: input.shippingRegion,
         shippingPostcode: input.shippingPostcode,
         shippingCountry: input.shippingCountry ?? "GB",
         vendorOrders: {

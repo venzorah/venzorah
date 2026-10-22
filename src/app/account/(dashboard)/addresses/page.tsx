@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { deleteAddress, saveAddress } from "@/app/actions/marketplace";
 import { ActionForm } from "@/components/forms";
+import { UkAddressFields } from "@/components/uk-address-fields";
 import { Button, Field, Input, PageHeader, Card } from "@/components/ui";
 
 export default async function AddressesPage() {
@@ -17,7 +18,8 @@ export default async function AddressesPage() {
               {a.label} {a.isDefault ? "(default)" : ""}
             </p>
             <p className="text-sm">
-              {a.line1}, {a.city} {a.postcode}
+              {a.line1}, {a.city}
+              {a.region ? `, ${a.region}` : ""} {a.postcode}
             </p>
             <form action={async () => { "use server"; await deleteAddress(a.id); }}>
               <Button type="submit" variant="ghost">
@@ -32,15 +34,7 @@ export default async function AddressesPage() {
         <Field label="Label">
           <Input name="label" defaultValue="Home" />
         </Field>
-        <Field label="Line 1">
-          <Input name="line1" required />
-        </Field>
-        <Field label="City">
-          <Input name="city" required />
-        </Field>
-        <Field label="Postcode">
-          <Input name="postcode" required autoComplete="postal-code" />
-        </Field>
+        <UkAddressFields line1Name="line1" cityName="city" regionName="region" postcodeName="postcode" />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="isDefault" /> Default address
         </label>

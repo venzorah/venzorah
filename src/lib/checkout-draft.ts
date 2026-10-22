@@ -18,6 +18,7 @@ export type CheckoutDraft = {
   shippingName: string;
   shippingLine1: string;
   shippingCity: string;
+  shippingRegion?: string;
   shippingPostcode: string;
   coupon?: string;
   cartId?: string;

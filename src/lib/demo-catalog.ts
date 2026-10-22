@@ -190,6 +190,10 @@ export function demoProducts() {
   return [...PRODUCTS].sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
 }
 
+export function demoProductsForStore(slug: string) {
+  return demoProducts().filter((product) => product.vendor.storeSlug === slug);
+}
+
 export function demoProductsForCategory(slug: string) {
   return demoProducts().filter((product) => product.categorySlug === slug);
 }

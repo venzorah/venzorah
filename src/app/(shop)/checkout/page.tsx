@@ -2,6 +2,7 @@ import Link from "next/link";
 import { checkoutAction } from "@/app/actions/marketplace";
 import { SignInToCheckout } from "@/components/sign-in-to-checkout";
 import { ActionForm } from "@/components/forms";
+import { UkAddressFields } from "@/components/uk-address-fields";
 import { Button, Field, Input, PageHeader } from "@/components/ui";
 import { checkoutActor } from "@/lib/checkout-actor";
 import { formatGbp } from "@/lib/money";
@@ -17,12 +18,14 @@ export default async function CheckoutPage() {
 
   const lines = await storeCartLines(user);
   const subtotal = lines.reduce((sum, line) => sum + line.unitPence * line.quantity, 0);
-  let defaultAddress: { line1: string; city: string; postcode: string } | null = null;
+  let defaultAddress: { line1: string; city: string; region: string; postcode: string } | null = null;
   if (!user.id.startsWith("demo-")) {
     try {
       const addresses = await prisma.address.findMany({ where: { userId: user.id } });
       const found = addresses.find((address) => address.isDefault) ?? addresses[0];
-      if (found) defaultAddress = { line1: found.line1, city: found.city, postcode: found.postcode };
+      if (found) {
+        defaultAddress = { line1: found.line1, city: found.city, region: found.region ?? "", postcode: found.postcode };
+      }
     } catch (error) {
       console.error("[checkout] addresses unavailable", error instanceof Error ? error.message : error);
     }
@@ -57,20 +60,16 @@ export default async function CheckoutPage() {
             <Field label="Full name">
               <Input name="shippingName" defaultValue={user.name} required autoComplete="name" />
             </Field>
-            <Field label="Address line 1">
-              <Input name="shippingLine1" defaultValue={defaultAddress?.line1} required autoComplete="address-line1" />
-            </Field>
-            <Field label="City">
-              <Input name="shippingCity" defaultValue={defaultAddress?.city} required autoComplete="address-level2" />
-            </Field>
-            <Field label="Postcode">
-              <Input
-                name="shippingPostcode"
-                defaultValue={defaultAddress?.postcode}
-                required
-                autoComplete="postal-code"
-              />
-            </Field>
+            <UkAddressFields
+              line1Name="shippingLine1"
+              cityName="shippingCity"
+              regionName="shippingRegion"
+              postcodeName="shippingPostcode"
+              defaultLine1={defaultAddress?.line1}
+              defaultCity={defaultAddress?.city}
+              defaultRegion={defaultAddress?.region}
+              defaultPostcode={defaultAddress?.postcode}
+            />
             <Field label="Coupon (optional)">
               <Input name="coupon" />
             </Field>

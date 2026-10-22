@@ -36,6 +36,7 @@ export async function payWithDemoStripe(formData: FormData) {
         shippingName: draft.shippingName,
         shippingLine1: draft.shippingLine1,
         shippingCity: draft.shippingCity,
+        shippingRegion: draft.shippingRegion,
         shippingPostcode: draft.shippingPostcode,
         couponCode: draft.coupon,
       });

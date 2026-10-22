@@ -474,6 +474,7 @@ model Order {
   shippingName     String
   shippingLine1    String
   shippingCity     String
+  shippingRegion   String?
   shippingPostcode String
   shippingCountry  String   @default("GB")
   notes            String?

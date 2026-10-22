@@ -22,6 +22,7 @@ import {
   vendorHasChosenPlan,
 } from "@/lib/commerce";
 import { slugify, uniqueSlug } from "@/lib/utils";
+import { resolveUkAddress } from "@/lib/uk-address";
 import { parseGbpToPence } from "@/lib/money";
 import { getSetting, setSetting, truthy } from "@/lib/settings";
 import { savePrivateUpload, savePublicUpload } from "@/lib/uploads";
@@ -150,17 +151,23 @@ export async function toggleWishlist(productId: string) {
 export async function saveAddress(formData: FormData) {
   const user = await requirePermission("customer.address.manage");
   const id = String(formData.get("id") ?? "");
+  const located = await resolveUkAddress({
+    city: String(formData.get("city") ?? ""),
+    region: String(formData.get("region") ?? ""),
+    postcode: String(formData.get("postcode") ?? ""),
+  });
+  if ("error" in located) return located;
   const data = {
     label: String(formData.get("label") ?? "Home"),
-    line1: String(formData.get("line1") ?? ""),
+    line1: String(formData.get("line1") ?? "").trim(),
     line2: String(formData.get("line2") ?? "") || null,
-    city: String(formData.get("city") ?? ""),
-    region: String(formData.get("region") ?? "") || null,
-    postcode: String(formData.get("postcode") ?? "").toUpperCase(),
+    city: located.city,
+    region: located.region,
+    postcode: located.postcode,
     country: "GB",
     isDefault: formData.get("isDefault") === "on",
   };
-  if (!data.line1 || !data.city || data.postcode.length < 5) return { error: "Enter a complete UK address." };
+  if (data.line1.trim().length < 3) return { error: "Enter a complete UK address." };
   if (data.isDefault) {
     await prisma.address.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
   }
@@ -217,15 +224,25 @@ export async function checkoutAction(formData: FormData) {
   if (!user) redirect("/login?next=/checkout");
   const shippingName = String(formData.get("shippingName") ?? user.name).trim();
   const shippingLine1 = String(formData.get("shippingLine1") ?? "").trim();
-  const shippingCity = String(formData.get("shippingCity") ?? "").trim();
-  const shippingPostcode = String(formData.get("shippingPostcode") ?? "").trim().toUpperCase();
-  if (shippingName.length < 2 || shippingLine1.length < 3 || shippingCity.length < 2 || shippingPostcode.length < 5) {
+  const located = await resolveUkAddress({
+    city: String(formData.get("shippingCity") ?? ""),
+    region: String(formData.get("shippingRegion") ?? ""),
+    postcode: String(formData.get("shippingPostcode") ?? ""),
+  });
+  if ("error" in located) return located;
+  if (shippingName.length < 2 || shippingLine1.length < 3) {
     return { error: "Enter a full name and a complete UK delivery address." };
   }
   const coupon = String(formData.get("coupon") ?? "").trim();
   const built = await buildCheckoutDraft(
     user,
-    { shippingName, shippingLine1, shippingCity, shippingPostcode },
+    {
+      shippingName,
+      shippingLine1,
+      shippingCity: located.city,
+      shippingRegion: located.region,
+      shippingPostcode: located.postcode,
+    },
     coupon || undefined,
   );
   if ("error" in built) return built;

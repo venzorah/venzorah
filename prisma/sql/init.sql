@@ -466,6 +466,7 @@ CREATE TABLE "Order" (
     "shippingName" TEXT NOT NULL,
     "shippingLine1" TEXT NOT NULL,
     "shippingCity" TEXT NOT NULL,
+    "shippingRegion" TEXT,
     "shippingPostcode" TEXT NOT NULL,
     "shippingCountry" TEXT NOT NULL DEFAULT 'GB',
     "notes" TEXT,
