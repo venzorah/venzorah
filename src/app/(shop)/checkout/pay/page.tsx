@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { updateCheckoutDelivery } from "@/app/actions/marketplace";
+import { buyerBalanceFor, payWithWallet } from "@/app/actions/wallet";
 import { SignInToCheckout } from "@/components/sign-in-to-checkout";
 import { DemoStripeForm } from "@/components/demo-stripe-form";
 import { ActionForm } from "@/components/forms";
 import { Button, PageHeader } from "@/components/ui";
-import { checkoutActor } from "@/lib/checkout-actor";
+import { checkoutActor, isDemoActor } from "@/lib/checkout-actor";
 import { readCheckoutDraft } from "@/lib/checkout-draft";
 import { formatGbp } from "@/lib/money";
 
 export default async function DemoStripePage() {
   const user = await checkoutActor();
   if (!user) return <SignInToCheckout />;
+  const walletPence = user && !isDemoActor(user) ? await buyerBalanceFor(user.id).catch(() => 0) : null;
   const draft = await readCheckoutDraft();
   if (!draft || draft.userId !== user.id) {
     return (
@@ -26,7 +28,7 @@ export default async function DemoStripePage() {
   return (
     <main className="mx-auto max-w-lg px-4 py-8">
       <PageHeader
-        title="Pay with demo Stripe"
+        title="Pay"
         description={`${draft.shippingName} · ${draft.shippingCity}${draft.shippingRegion ? `, ${draft.shippingRegion}` : ""} ${draft.shippingPostcode}`}
       />
       <div className="mb-4 grid gap-3 text-sm">
@@ -74,6 +76,21 @@ export default async function DemoStripePage() {
         {draft.taxPence ? <p>VAT {formatGbp(draft.taxPence)}</p> : null}
         <p className="font-bold">Total {formatGbp(draft.totalPence)}</p>
       </div>
+      {walletPence !== null ? (
+        <section className="mb-6 rounded-3xl bg-card p-5 ring-1 ring-border">
+          <h2 className="text-lg font-bold text-ink">Pay with wallet</h2>
+          <p className="mt-1 text-sm text-muted">Balance {formatGbp(walletPence)}. The seller’s share goes into their wallet and stays held for 7 days.</p>
+          {walletPence >= draft.totalPence ? (
+            <ActionForm action={payWithWallet} className="mt-4" successMessage={null}>
+              <Button type="submit">Pay {formatGbp(draft.totalPence)} from wallet</Button>
+            </ActionForm>
+          ) : (
+            <p className="mt-3 text-sm text-ink">
+              Add {formatGbp(draft.totalPence - walletPence)} in your <Link href="/account/wallet" className="font-semibold underline">wallet</Link> to pay this way.
+            </p>
+          )}
+        </section>
+      ) : null}
       <DemoStripeForm totalPence={draft.totalPence} />
     </main>
   );

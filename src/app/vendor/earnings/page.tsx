@@ -12,7 +12,7 @@ export default async function EarningsPage() {
   ]);
   return (
     <>
-      <PageHeader title="Earnings ledger" description="Product commission and shipping are recorded separately. Shipping fees are yours in full. Funds stay on hold for the escrow window." />
+      <PageHeader title="Earnings ledger" description="A paid order credits your wallet. Shipping is yours in full. The share stays held until 7 days pass with no open complaint, then it can be withdrawn." />
       <div className="grid gap-3 sm:grid-cols-2">
         <Card>Product proceeds {formatGbp(balances.productProceedsPence)}</Card>
         <Card>Shipping collected {formatGbp(balances.shippingPence)}</Card>

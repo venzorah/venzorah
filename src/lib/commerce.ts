@@ -4,6 +4,7 @@ import {
   balancesFromLines,
   canCompletePayout,
   canRecordPayment,
+  canReleaseToWallet,
   chooseShippingQuote,
   coveredCommissionBps,
   quotedShippingPrice,
@@ -14,6 +15,7 @@ import { prisma } from "./db";
 import { applyBps, SETTLEMENT_DELAY_DAYS } from "./money";
 import { orderNumber, methodServesPostcode } from "./utils";
 import { notify, audit } from "./audit";
+import { postWalletEntry, WALLET_REFUND } from "./wallet";
 import { getSetting } from "./settings";
 import { listingLimitReached } from "./listings";
 
@@ -436,28 +438,42 @@ export async function confirmCustomerDelivery(vendorOrderId: string, userId: str
   });
 }
 
-export async function releaseEligibleEarnings() {
+export async function releaseEligibleEarnings(now = new Date()) {
   const delayDays = Number(await getSetting("settlementDelayDays")) || SETTLEMENT_DELAY_DAYS;
-  const cutoff = new Date(Date.now() - delayDays * 24 * 60 * 60 * 1000);
   const candidates = await prisma.vendorOrder.findMany({
     where: {
-      status: "DELIVERED",
       settlementAt: null,
-      disputes: { none: { status: { in: ["OPEN", "INVESTIGATING"] } } },
-      OR: [
-        { customerConfirmedAt: { not: null } },
-        { deliveredAt: { lte: cutoff } },
-      ],
+      status: { notIn: ["AWAITING_PAYMENT", "CANCELLED"] },
+      order: { paymentStatus: "PAID" },
     },
+    include: { order: true, disputes: { where: { status: { in: ["OPEN", "INVESTIGATING"] } }, select: { id: true } } },
   });
+  let released = 0;
   for (const vo of candidates) {
+    if (
+      !canReleaseToWallet({
+        paid: true,
+        settled: false,
+        openDispute: vo.disputes.length > 0,
+        placedAt: vo.order.placedAt,
+        customerConfirmedAt: vo.customerConfirmedAt,
+        now,
+        delayDays,
+      })
+    ) {
+      continue;
+    }
     const current = vo.allocationVersion >= ALLOCATION_VERSION;
     const productProceeds = current ? vo.vendorNetPence - vo.shippingPence : vo.vendorNetPence;
     const claimed = await prisma.vendorOrder.updateMany({
       where: { id: vo.id, settlementAt: null },
-      data: { settlementAt: new Date(), status: "SETTLED" },
+      data: {
+        settlementAt: new Date(),
+        ...(vo.status === "DELIVERED" ? { status: "SETTLED" } : {}),
+      },
     });
     if (!claimed.count) continue;
+    released += 1;
     await prisma.ledgerEntry.create({
       data: {
         vendorId: vo.vendorId,
@@ -481,10 +497,11 @@ export async function releaseEligibleEarnings() {
       });
     }
   }
-  return candidates.length;
+  return released;
 }
 
 export async function vendorBalances(vendorId: string) {
+  await releaseEligibleEarnings();
   const entries = await prisma.ledgerEntry.findMany({ where: { vendorId } });
   const openWithdrawals = await prisma.withdrawalRequest.aggregate({
     where: { vendorId, status: { in: ["PENDING", "PROCESSING"] } },
@@ -503,7 +520,12 @@ export async function vendorBalances(vendorId: string) {
 
 export async function requestWithdrawal(vendorId: string, amountPence: number) {
   if (amountPence <= 0) throw new CommerceError("Enter a positive amount.");
+  await releaseEligibleEarnings();
   return prisma.$transaction(async (tx) => {
+    const method =
+      (await tx.payoutMethod.findFirst({ where: { vendorId, isDefault: true } })) ??
+      (await tx.payoutMethod.findFirst({ where: { vendorId } }));
+    if (!method) throw new CommerceError("Add the bank account withdrawals should be paid to.");
     const entries = await tx.ledgerEntry.findMany({ where: { vendorId } });
     const open = await tx.withdrawalRequest.aggregate({
       where: { vendorId, status: { in: ["PENDING", "PROCESSING"] } },
@@ -519,11 +541,26 @@ export async function requestWithdrawal(vendorId: string, amountPence: number) {
       open._sum.amountPence ?? 0,
     );
     if (amountPence > availablePence) {
-      throw new CommerceError("Withdrawal exceeds eligible balance.");
+      throw new CommerceError("That amount is still in the 7-day hold, or it is more than your wallet can pay out.");
     }
-    return tx.withdrawalRequest.create({
-      data: { vendorId, amountPence, status: "PENDING" },
+    const payout = await tx.withdrawalRequest.create({
+      data: {
+        vendorId,
+        amountPence,
+        status: "COMPLETED",
+        processedAt: new Date(),
+        reason: `Paid to ${method.label}`,
+      },
     });
+    await tx.ledgerEntry.create({
+      data: {
+        vendorId,
+        type: "PAYOUT",
+        amountPence,
+        note: `Withdrawal to ${method.label}`,
+      },
+    });
+    return payout;
   });
 }
 
@@ -558,7 +595,10 @@ export async function refundVendorOrder(input: {
   if (existing) return existing;
   try {
     return await prisma.$transaction(async (tx) => {
-      const vo = await tx.vendorOrder.findUnique({ where: { id: input.vendorOrderId } });
+      const vo = await tx.vendorOrder.findUnique({
+        where: { id: input.vendorOrderId },
+        include: { order: { select: { userId: true, number: true } } },
+      });
       if (!vo) throw new CommerceError("Vendor order not found.");
       const current = vo.allocationVersion >= ALLOCATION_VERSION;
       const eligibleProduct = current ? vo.subtotalPence - vo.discountPence : vo.subtotalPence;
@@ -603,6 +643,16 @@ export async function refundVendorOrder(input: {
             amountPence: adjustment.commissionReversalPence,
             note: input.reason,
           },
+        });
+      }
+      if (adjustment.buyerRefundPence > 0) {
+        await postWalletEntry(tx, {
+          userId: vo.order.userId,
+          type: WALLET_REFUND,
+          amountPence: adjustment.buyerRefundPence,
+          orderId: vo.orderId,
+          idempotencyKey: `wallet_${input.idempotencyKey}`,
+          note: `Refund for ${vo.order.number}`,
         });
       }
       return refund;

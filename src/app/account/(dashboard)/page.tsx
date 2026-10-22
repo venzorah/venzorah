@@ -5,6 +5,7 @@ import { Badge, EmptyState } from "@/components/ui";
 import { DashboardHero } from "@/components/dashboard-hero";
 import { StatCard } from "@/components/stat-card";
 import { formatGbp } from "@/lib/money";
+import { buyerBalancePence } from "@/lib/wallet";
 
 export default async function AccountHome() {
   const user = await requireUser();
@@ -13,8 +14,9 @@ export default async function AccountHome() {
   let notifications = 0;
   let reviews = 0;
   let returns = 0;
+  let walletPence = 0;
   try {
-    const [orderRows, wishlistCount, notificationCount, reviewCount, returnCount] = await Promise.all([
+    const [orderRows, wishlistCount, notificationCount, reviewCount, returnCount, walletEntries] = await Promise.all([
       prisma.order.findMany({ where: { userId: user.id }, orderBy: { placedAt: "desc" }, take: 5 }),
       prisma.wishlistItem.count({ where: { userId: user.id } }),
       prisma.notification.count({ where: { userId: user.id, readAt: null } }),
@@ -22,12 +24,14 @@ export default async function AccountHome() {
       prisma.dispute.count({
         where: { vendorOrder: { order: { userId: user.id } }, status: { in: ["OPEN", "INVESTIGATING"] } },
       }),
+      prisma.buyerWalletEntry.findMany({ where: { userId: user.id } }),
     ]);
     orders = orderRows;
     wishlist = wishlistCount;
     notifications = notificationCount;
     reviews = reviewCount;
     returns = returnCount;
+    walletPence = buyerBalancePence(walletEntries);
   } catch (error) {
     console.error("[account] dashboard data unavailable", error instanceof Error ? error.message : error);
   }
@@ -44,7 +48,10 @@ export default async function AccountHome() {
         }
       />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Wishlist" value={wishlist} hint="Saved for later" accent="gold" />
+        <Link href="/account/wallet">
+          <StatCard label="Wallet" value={formatGbp(walletPence)} hint="Spend or withdraw" accent="gold" />
+        </Link>
+        <StatCard label="Wishlist" value={wishlist} hint="Saved for later" accent="navy" />
         <StatCard label="Unread" value={notifications} hint="Notifications" accent="info" />
         <StatCard label="Reviews" value={reviews} hint="Shared with vendors" accent="navy" />
         <StatCard label="Open returns" value={returns} hint="Needs attention" accent={returns ? "gold" : "success"} />

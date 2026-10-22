@@ -262,6 +262,21 @@ export function ledgerDifference(paymentPence: number, lines: SettlementLine[], 
   return paymentPence - (vendor + commission + taxPence);
 }
 
+/** Paid order money can leave the vendor wallet hold after 7 clear days, or when the buyer confirms delivery. An open complaint blocks it. */
+export function canReleaseToWallet(input: {
+  paid: boolean;
+  settled: boolean;
+  openDispute: boolean;
+  placedAt: Date;
+  customerConfirmedAt: Date | null;
+  now: Date;
+  delayDays: number;
+}) {
+  if (!input.paid || input.settled || input.openDispute) return false;
+  if (input.customerConfirmedAt) return true;
+  return input.now.getTime() >= input.placedAt.getTime() + input.delayDays * 24 * 60 * 60 * 1000;
+}
+
 export function canRecordPayment(existingId: string | null | undefined) {
   return !existingId;
 }

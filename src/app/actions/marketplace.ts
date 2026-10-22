@@ -27,6 +27,7 @@ import {
 import { slugify, uniqueSlug } from "@/lib/utils";
 import { resolveUkAddress } from "@/lib/uk-address";
 import { parseGbpToPence } from "@/lib/money";
+import { normaliseUkBank } from "@/lib/wallet";
 import { getSetting, setSetting, truthy } from "@/lib/settings";
 import { savePrivateUpload, savePublicUpload } from "@/lib/uploads";
 import { assertNotLastAdmin } from "@/lib/last-admin";
@@ -784,6 +785,27 @@ export async function saveShippingMethod(formData: FormData) {
   revalidatePath("/vendor/shipping");
 }
 
+export async function saveVendorBankAction(formData: FormData) {
+  const user = await requirePermission("vendor.payout.request");
+  if (!user.vendorId) return { error: "Vendor profile missing." };
+  const accountName = String(formData.get("accountName") ?? "").trim();
+  const bank = normaliseUkBank(String(formData.get("sortCode") ?? ""), String(formData.get("accountNumber") ?? ""));
+  if (accountName.length < 2 || !bank) {
+    return { error: "Enter the account name, a 6-digit sort code and an 8-digit account number." };
+  }
+  await prisma.payoutMethod.updateMany({ where: { vendorId: user.vendorId }, data: { isDefault: false } });
+  await prisma.payoutMethod.create({
+    data: {
+      vendorId: user.vendorId,
+      type: "BANK_UK",
+      label: accountName,
+      details: `${bank.sortCode} · ${bank.accountNumber}`,
+      isDefault: true,
+    },
+  });
+  revalidatePath("/vendor/payouts");
+}
+
 export async function requestPayoutAction(formData: FormData) {
   const user = await requirePermission("vendor.payout.request");
   if (!user.vendorId) return { error: "Vendor profile missing." };
@@ -793,6 +815,7 @@ export async function requestPayoutAction(formData: FormData) {
     return { error: error instanceof CommerceError ? error.message : "Payout failed." };
   }
   revalidatePath("/vendor/payouts");
+  revalidatePath("/vendor/earnings");
 }
 
 export async function subscribePlan(planId: string) {

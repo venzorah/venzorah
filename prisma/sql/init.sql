@@ -1072,3 +1072,52 @@ ALTER TABLE "SettingChange" ADD CONSTRAINT "SettingChange_actorId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Buyer wallet
+CREATE TABLE "BuyerWalletEntry" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "amountPence" INTEGER NOT NULL,
+    "orderId" TEXT,
+    "idempotencyKey" TEXT,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "BuyerWalletEntry_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "BuyerWalletEntry_idempotencyKey_key" ON "BuyerWalletEntry"("idempotencyKey");
+CREATE INDEX "BuyerWalletEntry_userId_createdAt_idx" ON "BuyerWalletEntry"("userId", "createdAt");
+
+CREATE TABLE "BuyerPayoutDetail" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "accountName" TEXT NOT NULL,
+    "sortCode" TEXT NOT NULL,
+    "accountNumber" TEXT NOT NULL,
+
+    CONSTRAINT "BuyerPayoutDetail_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "BuyerPayoutDetail_userId_key" ON "BuyerPayoutDetail"("userId");
+
+CREATE TABLE "BuyerPayout" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "amountPence" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'COMPLETED',
+    "accountName" TEXT NOT NULL,
+    "sortCode" TEXT NOT NULL,
+    "accountLast4" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "processedAt" TIMESTAMP(3),
+
+    CONSTRAINT "BuyerPayout_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX "BuyerPayout_userId_createdAt_idx" ON "BuyerPayout"("userId", "createdAt");
+
+ALTER TABLE "BuyerWalletEntry" ADD CONSTRAINT "BuyerWalletEntry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "BuyerPayoutDetail" ADD CONSTRAINT "BuyerPayoutDetail_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "BuyerPayout" ADD CONSTRAINT "BuyerPayout_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

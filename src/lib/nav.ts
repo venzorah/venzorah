@@ -1,6 +1,7 @@
 export const CUSTOMER_NAV = [
   { href: "/account", label: "Overview" },
   { href: "/account/orders", label: "Orders" },
+  { href: "/account/wallet", label: "Wallet" },
   { href: "/account/addresses", label: "Addresses" },
   { href: "/account/wishlist", label: "Wishlist" },
   { href: "/account/reviews", label: "Reviews" },
@@ -21,7 +22,7 @@ export const VENDOR_NAV = [
   { href: "/vendor/shipping", label: "Shipping" },
   { href: "/vendor/subscription", label: "Subscription" },
   { href: "/vendor/earnings", label: "Earnings" },
-  { href: "/vendor/payouts", label: "Payouts" },
+  { href: "/vendor/payouts", label: "Wallet" },
   { href: "/vendor/reviews", label: "Reviews" },
   { href: "/vendor/inquiries", label: "Inquiries" },
   { href: "/vendor/promotions", label: "Promotions" },

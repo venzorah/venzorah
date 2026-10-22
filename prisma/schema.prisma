@@ -35,6 +35,9 @@ model User {
   wishlistItems      WishlistItem[]
   carts              Cart[]
   orders             Order[]
+  walletEntries      BuyerWalletEntry[]
+  payoutDetail       BuyerPayoutDetail?
+  buyerPayouts       BuyerPayout[]
   permissionOverrides PermissionOverride[]
   settingChanges     SettingChange[]
   restrictionEvents  AccountRestriction[]  @relation("RestrictionTarget")
@@ -143,6 +146,44 @@ model AccountRestriction {
   liftedAt    DateTime?
   user        User      @relation("RestrictionTarget", fields: [userId], references: [id], onDelete: Cascade)
   actor       User?     @relation("RestrictionActor", fields: [actorId], references: [id])
+}
+
+model BuyerWalletEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  type           String
+  amountPence    Int
+  orderId        String?
+  idempotencyKey String?  @unique
+  note           String?
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model BuyerPayoutDetail {
+  id            String @id @default(cuid())
+  userId        String @unique
+  accountName   String
+  sortCode      String
+  accountNumber String
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BuyerPayout {
+  id           String   @id @default(cuid())
+  userId       String
+  amountPence  Int
+  status       String   @default("COMPLETED")
+  accountName  String
+  sortCode     String
+  accountLast4 String
+  createdAt    DateTime @default(now())
+  processedAt  DateTime?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model CustomerProfile {
