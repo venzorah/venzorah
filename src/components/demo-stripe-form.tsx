@@ -4,11 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { payWithDemoStripe } from "@/app/actions/demo-checkout";
 import { Button, Field, Input } from "@/components/ui";
+import { formatCardExpiry } from "@/lib/demo-stripe";
 import { formatGbp } from "@/lib/money";
 
 export function DemoStripeForm({ totalPence }: { totalPence: number }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [expiry, setExpiry] = useState("");
   const [pending, start] = useTransition();
 
   return (
@@ -41,8 +43,17 @@ export function DemoStripeForm({ totalPence }: { totalPence: number }) {
         <Input name="cardNumber" inputMode="numeric" autoComplete="off" placeholder="4242 4242 4242 4242" required />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Expiry">
-          <Input name="cardExpiry" inputMode="numeric" autoComplete="off" placeholder="12/34" required />
+        <Field label="Expiry" hint="Month and year, 01 to 12. For example 12/29.">
+          <Input
+            name="cardExpiry"
+            inputMode="numeric"
+            autoComplete="cc-exp"
+            placeholder="12/29"
+            maxLength={5}
+            value={expiry}
+            onChange={(event) => setExpiry(formatCardExpiry(event.target.value))}
+            required
+          />
         </Field>
         <Field label="CVC">
           <Input name="cardCvc" inputMode="numeric" autoComplete="off" placeholder="123" required />

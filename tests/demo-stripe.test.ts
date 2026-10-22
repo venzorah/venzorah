@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessDemoCard, demoShippingPence } from "../src/lib/demo-stripe";
+import { assessDemoCard, demoShippingPence, formatCardExpiry } from "../src/lib/demo-stripe";
 import { readPayload, signPayload } from "../src/lib/signed-payload";
 import { safeNextPath } from "../src/lib/safe-next";
 
@@ -9,6 +9,16 @@ describe("demo stripe checkout", () => {
     expect(assessDemoCard("4000000000000002", "12/34", "123", new Date("2026-01-01")).ok).toBe(false);
     expect(assessDemoCard("4111111111111111", "12/34", "123", new Date("2026-01-01")).ok).toBe(false);
     expect(assessDemoCard("4242424242424242", "01/20", "123", new Date("2026-01-01")).ok).toBe(false);
+    expect(assessDemoCard("4242424242424242", "17/29", "123", new Date("2026-10-22")).ok).toBe(false);
+    expect(assessDemoCard("4242424242424242", "12/29", "123", new Date("2026-10-22"))).toEqual({ ok: true });
+    expect(assessDemoCard("4242424242424242", "10/26", "123", new Date("2026-10-22"))).toEqual({ ok: true });
+    expect(assessDemoCard("4242424242424242", "09/26", "123", new Date("2026-10-22")).ok).toBe(false);
+  });
+
+  it("formats expiry as MM/YY and drops a month that cannot exist", () => {
+    expect(formatCardExpiry("1229")).toBe("12/29");
+    expect(formatCardExpiry("17/29")).toBe("1");
+    expect(formatCardExpiry("7/29")).toBe("07/29");
   });
 
   it("adds flat UK shipping until the basket is large enough", () => {
