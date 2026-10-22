@@ -191,9 +191,9 @@ export async function seedDemoData() {
 
   const plans = [
     { key: "free", name: "Free", interval: "NONE", pricePence: 0, commissionBps: 500, maxActiveProducts: 5, sortOrder: 0 },
-    { key: "monthly", name: "Monthly", interval: "MONTH", pricePence: 3500, commissionBps: 300, maxActiveProducts: null, sortOrder: 1 },
-    { key: "six_month", name: "6-Month", interval: "SIX_MONTH", pricePence: 18000, commissionBps: 300, maxActiveProducts: null, sortOrder: 2, autoRenew: false },
-    { key: "annual", name: "Annual", interval: "YEAR", pricePence: 33600, commissionBps: 300, maxActiveProducts: null, sortOrder: 3, autoRenew: false },
+    { key: "monthly", name: "Monthly", interval: "MONTH", pricePence: 3500, commissionBps: 0, maxActiveProducts: null, sortOrder: 1 },
+    { key: "six_month", name: "6-Month", interval: "SIX_MONTH", pricePence: 18000, commissionBps: 0, maxActiveProducts: null, sortOrder: 2, autoRenew: false },
+    { key: "annual", name: "Annual", interval: "YEAR", pricePence: 33600, commissionBps: 0, maxActiveProducts: null, sortOrder: 3, autoRenew: false },
   ];
   for (const plan of plans) {
     await prisma.subscriptionPlan.upsert({

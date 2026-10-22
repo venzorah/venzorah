@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
+import { coveredCommissionBps } from "@/lib/allocation";
 import { getActivePlanForVendor, vendorHasChosenPlan } from "@/lib/commerce";
 import { subscribePlan } from "@/app/actions/marketplace";
 import { Button, PageHeader } from "@/components/ui";
@@ -103,7 +104,7 @@ export default async function SubscriptionPage({
               <dl className={`mt-6 grid grid-cols-2 gap-3 border-t pt-5 ${featured ? "border-white/15" : "border-border"}`}>
                 <div>
                   <dt className={`text-xs font-semibold ${muted}`}>Commission</dt>
-                  <dd className="mt-1 text-xl font-extrabold">{item.commissionBps / 100}%</dd>
+                  <dd className="mt-1 text-xl font-extrabold">{coveredCommissionBps(item) / 100}%</dd>
                 </div>
                 <div>
                   <dt className={`text-xs font-semibold ${muted}`}>Live listings</dt>

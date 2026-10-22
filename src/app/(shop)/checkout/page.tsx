@@ -54,7 +54,9 @@ export default async function CheckoutPage() {
               </p>
             ))}
             <p className="pt-2 text-sm font-semibold">Items {formatGbp(subtotal)}</p>
-            <p className="text-xs text-muted">Shipping is added on the payment step from your delivery postcode.</p>
+            <p className="text-xs text-muted">
+              Each store ships separately. The payment step shows that store&apos;s delivery options. Shipping is not estimated in the browser.
+            </p>
           </div>
           <ActionForm action={checkoutAction} className="grid gap-3 rounded-2xl border border-border bg-card p-4">
             <Field label="Full name">

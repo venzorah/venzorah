@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requirePermission } from "@/lib/auth";
+import { coveredCommissionBps } from "@/lib/allocation";
 import { getActivePlanForVendor } from "@/lib/commerce";
 import { VENDOR_NAV } from "@/lib/nav";
 import { prisma } from "@/lib/db";
@@ -18,7 +19,7 @@ export default async function VendorLayout({ children }: { children: React.React
         <div className="rounded-2xl bg-navy-deep p-4">
           <p className="text-xs text-white/60">{vendor?.storeName ?? "Your store"}</p>
           <p className="mt-0.5 font-bold">{plan.name}</p>
-          <p className="text-xs text-white/60">{plan.commissionBps / 100}% commission</p>
+          <p className="text-xs text-white/60">{coveredCommissionBps(plan) / 100}% commission on product sales</p>
           <Link href="/vendor/subscription" className="mt-2 inline-block text-xs font-bold text-gold">
             Manage plan
           </Link>

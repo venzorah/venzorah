@@ -1,5 +1,17 @@
+import {
+  ALLOCATION_VERSION,
+  allocateOrder,
+  balancesFromLines,
+  canCompletePayout,
+  canRecordPayment,
+  chooseShippingQuote,
+  coveredCommissionBps,
+  quotedShippingPrice,
+  refundAdjustment,
+  type VendorChargeInput,
+} from "./allocation";
 import { prisma } from "./db";
-import { applyBps, vendorNet, SETTLEMENT_DELAY_DAYS } from "./money";
+import { applyBps, SETTLEMENT_DELAY_DAYS } from "./money";
 import { orderNumber, methodServesPostcode } from "./utils";
 import { notify, audit } from "./audit";
 import { getSetting } from "./settings";
@@ -88,8 +100,7 @@ export async function shippingQuote(vendorId: string, postcode: string, subtotal
     carrier: m.carrier,
     minDays: m.minDays,
     maxDays: m.maxDays,
-    pricePence:
-      m.freeAbovePence != null && subtotalPence >= m.freeAbovePence ? 0 : m.pricePence,
+    pricePence: quotedShippingPrice(m.pricePence, m.freeAbovePence, subtotalPence),
   }));
 }
 
@@ -118,6 +129,7 @@ type CheckoutInput = {
   shippingPostcode: string;
   shippingCountry?: string;
   couponCode?: string;
+  shippingMethodIds?: Record<string, string>;
 };
 
 export async function createOrderFromCart(input: CheckoutInput) {
@@ -154,11 +166,10 @@ export async function createOrderFromCart(input: CheckoutInput) {
 
   const prepared: {
     vendorId: string;
+    vendorName: string;
     subtotal: number;
-    shipping: number;
-    tax: number;
-    commissionBps: number;
     items: { productId: string; variantId: string; name: string; sku: string | null; qty: number; unit: number }[];
+    charge: VendorChargeInput;
   }[] = [];
 
   for (const [vendorId, items] of grouped) {
@@ -179,25 +190,60 @@ export async function createOrderFromCart(input: CheckoutInput) {
       });
     }
     const quotes = await shippingQuote(vendorId, input.shippingPostcode, subtotal);
-    const shipping = [...quotes].sort((a, b) => a.pricePence - b.pricePence)[0]?.pricePence ?? 0;
-    const tax = applyBps(subtotal, vatMode ? vatBps : 0);
+    let selected;
+    try {
+      selected = chooseShippingQuote(quotes, input.shippingMethodIds?.[vendorId]);
+    } catch (error) {
+      throw new CommerceError(error instanceof Error ? error.message : "Delivery is not available.");
+    }
     const plan = await getActivePlanForVendor(vendorId);
+    const premium = coveredCommissionBps(plan) === 0 && plan.key !== "free";
     prepared.push({
       vendorId,
+      vendorName: items[0]?.product.vendor.storeName ?? "Vendor",
       subtotal,
-      shipping,
-      tax,
-      commissionBps: plan.commissionBps,
       items: mapped,
+      charge: {
+        vendorId,
+        vendorName: items[0]?.product.vendor.storeName ?? "Vendor",
+        productSubtotalPence: subtotal,
+        shippingPence: selected.pricePence,
+        shippingMethodId: selected.id,
+        shippingMethodName: selected.name,
+        shippingMethodCode: selected.code,
+        premium,
+        taxPence: 0,
+      },
     });
   }
 
-  return prisma.$transaction(async (tx) => {
-    let orderSubtotal = 0;
-    let orderShipping = 0;
-    let orderTax = 0;
-    const vendorPayloads = [];
+  const orderSubtotal = prepared.reduce((sum, group) => sum + group.subtotal, 0);
+  let discount = 0;
+  if (input.couponCode) {
+    const coupon = await prisma.coupon.findUnique({ where: { code: input.couponCode.toUpperCase() } });
+    if (
+      coupon &&
+      coupon.enabled &&
+      (!coupon.startsAt || coupon.startsAt <= new Date()) &&
+      (!coupon.endsAt || coupon.endsAt >= new Date()) &&
+      orderSubtotal >= coupon.minSubtotalPence
+    ) {
+      discount = coupon.type === "PERCENT" ? applyBps(orderSubtotal, coupon.value) : Math.min(coupon.value, orderSubtotal);
+    }
+  }
+  const vatRate = vatMode ? vatBps : 0;
+  const allocation = allocateOrder(
+    prepared.map((group) => ({
+      ...group.charge,
+      taxPence: applyBps(group.subtotal, vatRate),
+    })),
+    discount,
+  );
+  if (allocation.differencePence !== 0) {
+    throw new CommerceError("This checkout could not be reconciled.");
+  }
 
+  return prisma.$transaction(async (tx) => {
     for (const group of prepared) {
       for (const item of group.items) {
         const locked = await tx.productVariant.update({
@@ -213,38 +259,18 @@ export async function createOrderFromCart(input: CheckoutInput) {
           },
         });
       }
-      vendorPayloads.push(group);
-      orderSubtotal += group.subtotal;
-      orderShipping += group.shipping;
-      orderTax += group.tax;
     }
 
-    let discount = 0;
-    if (input.couponCode) {
-      const coupon = await tx.coupon.findUnique({ where: { code: input.couponCode.toUpperCase() } });
-      if (
-        coupon &&
-        coupon.enabled &&
-        (!coupon.startsAt || coupon.startsAt <= new Date()) &&
-        (!coupon.endsAt || coupon.endsAt >= new Date()) &&
-        orderSubtotal >= coupon.minSubtotalPence
-      ) {
-        discount =
-          coupon.type === "PERCENT" ? applyBps(orderSubtotal, coupon.value) : Math.min(coupon.value, orderSubtotal);
-      }
-    }
-
-    const total = Math.max(0, orderSubtotal + orderShipping + orderTax - discount);
     const order = await tx.order.create({
       data: {
         number: orderNumber(),
         userId: input.userId,
         status: "PENDING_PAYMENT",
-        subtotalPence: orderSubtotal,
-        shippingPence: orderShipping,
-        taxPence: orderTax,
-        discountPence: discount,
-        totalPence: total,
+        subtotalPence: allocation.subtotalPence,
+        shippingPence: allocation.shippingPence,
+        taxPence: allocation.taxPence,
+        discountPence: allocation.discountPence,
+        totalPence: allocation.paymentPence,
         paymentStatus: "UNPAID",
         shippingName: input.shippingName,
         shippingLine1: input.shippingLine1,
@@ -253,26 +279,30 @@ export async function createOrderFromCart(input: CheckoutInput) {
         shippingPostcode: input.shippingPostcode,
         shippingCountry: input.shippingCountry ?? "GB",
         vendorOrders: {
-          create: vendorPayloads.map((v) => {
-            const { commissionPence, vendorNetPence } = vendorNet(v.subtotal, v.commissionBps);
+          create: allocation.vendors.map((vendor) => {
+            const group = prepared.find((row) => row.vendorId === vendor.vendorId);
             return {
-              vendorId: v.vendorId,
+              vendorId: vendor.vendorId,
               status: "AWAITING_PAYMENT",
-              subtotalPence: v.subtotal,
-              shippingPence: v.shipping,
-              taxPence: v.tax,
-              commissionBps: v.commissionBps,
-              commissionPence,
-              vendorNetPence,
+              subtotalPence: vendor.productSubtotalPence,
+              shippingPence: vendor.shippingPence,
+              taxPence: vendor.taxPence,
+              discountPence: vendor.discountPence,
+              commissionBps: vendor.commissionBps,
+              commissionPence: vendor.commissionPence,
+              vendorNetPence: vendor.vendorPence,
+              allocationVersion: ALLOCATION_VERSION,
+              shippingMethodName: vendor.shippingMethodName,
+              shippingMethodCode: vendor.shippingMethodCode,
               items: {
-                create: v.items.map((i) => ({
-                  productId: i.productId,
-                  variantId: i.variantId,
-                  nameSnapshot: i.name,
-                  skuSnapshot: i.sku,
-                  quantity: i.qty,
-                  unitPence: i.unit,
-                  totalPence: i.unit * i.qty,
+                create: (group?.items ?? []).map((item) => ({
+                  productId: item.productId,
+                  variantId: item.variantId,
+                  nameSnapshot: item.name,
+                  skuSnapshot: item.sku,
+                  quantity: item.qty,
+                  unitPence: item.unit,
+                  totalPence: item.unit * item.qty,
                 })),
               },
             };
@@ -288,14 +318,19 @@ export async function createOrderFromCart(input: CheckoutInput) {
 
 export async function confirmPayment(orderId: string, providerRef: string, idempotencyKey: string) {
   const existing = await prisma.payment.findUnique({ where: { idempotencyKey } });
-  if (existing) return existing;
+  if (!canRecordPayment(existing?.id)) return existing;
 
-  return prisma.$transaction(async (tx) => {
+  let result: { payment: { id: string } | undefined; order: { userId: string; number: string; id: string }; duplicate: boolean };
+  try {
+    result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      include: { vendorOrders: true, user: true },
+      include: { vendorOrders: true, user: true, payments: true },
     });
     if (!order) throw new CommerceError("Order not found");
+    if (order.paymentStatus === "PAID" || order.payments.length) {
+      return { payment: order.payments[0], order, duplicate: true };
+    }
     const payment = await tx.payment.create({
       data: {
         orderId,
@@ -315,26 +350,57 @@ export async function confirmPayment(orderId: string, providerRef: string, idemp
         where: { id: vo.id },
         data: { status: "NEW" },
       });
+      const current = vo.allocationVersion >= ALLOCATION_VERSION;
+      const productProceeds = current ? vo.vendorNetPence - vo.shippingPence : vo.vendorNetPence;
+      const shipping = current ? vo.shippingPence : 0;
       await tx.ledgerEntry.create({
         data: {
           vendorId: vo.vendorId,
           vendorOrderId: vo.id,
           type: "PENDING_EARNING",
-          amountPence: vo.vendorNetPence,
-          note: `Order ${order.number}`,
+          amountPence: productProceeds,
+          note: `Product proceeds ${order.number}`,
         },
       });
+      if (current) {
+        await tx.ledgerEntry.create({
+          data: {
+            vendorId: vo.vendorId,
+            vendorOrderId: vo.id,
+            type: "SHIPPING_ALLOCATION",
+            amountPence: shipping,
+            note: `Shipping ${order.number}`,
+          },
+        });
+      }
+      if (vo.commissionPence > 0) {
+        await tx.ledgerEntry.create({
+          data: {
+            vendorId: vo.vendorId,
+            vendorOrderId: vo.id,
+            type: "PLATFORM_COMMISSION",
+            amountPence: vo.commissionPence,
+            note: `Commission ${order.number}`,
+          },
+        });
+      }
     }
-    return { payment, order };
-  }).then(async ({ payment, order }) => {
-    await notify(
-      order.userId,
-      "Order confirmed",
-      `Payment received for ${order.number}.`,
-      `/account/orders/${order.id}`,
-    );
-    return payment;
+    return { payment, order, duplicate: false };
   });
+  } catch (error) {
+    const again = await prisma.payment.findUnique({ where: { idempotencyKey } });
+    if (again) return again;
+    throw error;
+  }
+  if (!result.duplicate && result.order) {
+    await notify(
+      result.order.userId,
+      "Order confirmed",
+      `Payment received for ${result.order.number}.`,
+      `/account/orders/${result.order.id}`,
+    );
+  }
+  return result.payment;
 }
 
 export async function markDelivered(vendorOrderId: string, actorId: string) {
@@ -385,60 +451,189 @@ export async function releaseEligibleEarnings() {
     },
   });
   for (const vo of candidates) {
-    await prisma.$transaction([
-      prisma.vendorOrder.update({
-        where: { id: vo.id },
-        data: { settlementAt: new Date(), status: "SETTLED" },
-      }),
-      prisma.ledgerEntry.create({
+    const current = vo.allocationVersion >= ALLOCATION_VERSION;
+    const productProceeds = current ? vo.vendorNetPence - vo.shippingPence : vo.vendorNetPence;
+    const claimed = await prisma.vendorOrder.updateMany({
+      where: { id: vo.id, settlementAt: null },
+      data: { settlementAt: new Date(), status: "SETTLED" },
+    });
+    if (!claimed.count) continue;
+    await prisma.ledgerEntry.create({
+      data: {
+        vendorId: vo.vendorId,
+        vendorOrderId: vo.id,
+        type: "AVAILABLE_EARNING",
+        amountPence: productProceeds,
+        availableAt: new Date(),
+        note: "Product proceeds released",
+      },
+    });
+    if (current) {
+      await prisma.ledgerEntry.create({
         data: {
           vendorId: vo.vendorId,
           vendorOrderId: vo.id,
-          type: "AVAILABLE_EARNING",
-          amountPence: vo.vendorNetPence,
+          type: "SHIPPING_AVAILABLE",
+          amountPence: vo.shippingPence,
           availableAt: new Date(),
-          note: "Settlement release",
+          note: "Shipping fee released",
         },
-      }),
-    ]);
+      });
+    }
   }
   return candidates.length;
 }
 
 export async function vendorBalances(vendorId: string) {
   const entries = await prisma.ledgerEntry.findMany({ where: { vendorId } });
-  let pending = 0;
-  let available = 0;
-  let held = 0;
-  let withdrawn = 0;
-  for (const e of entries) {
-    if (e.type === "PENDING_EARNING") pending += e.amountPence;
-    if (e.type === "AVAILABLE_EARNING") available += e.amountPence;
-    if (e.type === "HOLD") held += e.amountPence;
-    if (e.type === "PAYOUT") withdrawn += e.amountPence;
-    if (e.type === "REFUND_DEDUCTION") available -= e.amountPence;
-    if (e.type === "RELEASE_HOLD") held -= e.amountPence;
-  }
   const openWithdrawals = await prisma.withdrawalRequest.aggregate({
     where: { vendorId, status: { in: ["PENDING", "PROCESSING"] } },
     _sum: { amountPence: true },
   });
-  const reserved = openWithdrawals._sum.amountPence ?? 0;
-  return {
-    pendingPence: pending,
-    availablePence: Math.max(0, available - withdrawn - reserved),
-    heldPence: held,
-    withdrawnPence: withdrawn,
-  };
+  return balancesFromLines(
+    entries.map((entry) => ({
+      vendorId: entry.vendorId,
+      vendorOrderKey: entry.vendorOrderId ?? entry.vendorId,
+      type: entry.type,
+      amountPence: entry.amountPence,
+    })),
+    openWithdrawals._sum.amountPence ?? 0,
+  );
 }
 
 export async function requestWithdrawal(vendorId: string, amountPence: number) {
   if (amountPence <= 0) throw new CommerceError("Enter a positive amount.");
-  const { availablePence } = await vendorBalances(vendorId);
-  if (amountPence > availablePence) {
-    throw new CommerceError("Withdrawal exceeds eligible balance.");
+  return prisma.$transaction(async (tx) => {
+    const entries = await tx.ledgerEntry.findMany({ where: { vendorId } });
+    const open = await tx.withdrawalRequest.aggregate({
+      where: { vendorId, status: { in: ["PENDING", "PROCESSING"] } },
+      _sum: { amountPence: true },
+    });
+    const { availablePence } = balancesFromLines(
+      entries.map((entry) => ({
+        vendorId,
+        vendorOrderKey: entry.vendorOrderId ?? vendorId,
+        type: entry.type,
+        amountPence: entry.amountPence,
+      })),
+      open._sum.amountPence ?? 0,
+    );
+    if (amountPence > availablePence) {
+      throw new CommerceError("Withdrawal exceeds eligible balance.");
+    }
+    return tx.withdrawalRequest.create({
+      data: { vendorId, amountPence, status: "PENDING" },
+    });
+  });
+}
+
+export async function releaseDisputeHold(vendorOrderId: string) {
+  const entries = await prisma.ledgerEntry.findMany({
+    where: { vendorOrderId, type: { in: ["HOLD", "RELEASE_HOLD"] } },
+  });
+  const open = entries.reduce((sum, entry) => sum + (entry.type === "HOLD" ? entry.amountPence : -entry.amountPence), 0);
+  if (open <= 0) return;
+  const vendorId = entries[0]?.vendorId;
+  if (!vendorId) return;
+  await prisma.ledgerEntry.create({
+    data: {
+      vendorId,
+      vendorOrderId,
+      type: "RELEASE_HOLD",
+      amountPence: open,
+      note: "Dispute hold released",
+    },
+  });
+}
+
+export async function refundVendorOrder(input: {
+  vendorOrderId: string;
+  productRefundPence: number;
+  shippingRefundPence?: number;
+  reason: string;
+  idempotencyKey: string;
+  disputeId?: string;
+}) {
+  const existing = await prisma.refund.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+  if (existing) return existing;
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const vo = await tx.vendorOrder.findUnique({ where: { id: input.vendorOrderId } });
+      if (!vo) throw new CommerceError("Vendor order not found.");
+      const current = vo.allocationVersion >= ALLOCATION_VERSION;
+      const eligibleProduct = current ? vo.subtotalPence - vo.discountPence : vo.subtotalPence;
+      const productRefund = Math.min(Math.max(0, input.productRefundPence), Math.max(0, eligibleProduct));
+      const shippingRefund = current ? Math.min(Math.max(0, input.shippingRefundPence ?? 0), vo.shippingPence) : 0;
+      const adjustment = refundAdjustment({
+        productRefundPence: productRefund,
+        shippingRefundPence: shippingRefund,
+        commissionBps: vo.commissionBps,
+      });
+      const refund = await tx.refund.create({
+        data: {
+          disputeId: input.disputeId,
+          orderId: vo.orderId,
+          vendorOrderId: vo.id,
+          amountPence: adjustment.buyerRefundPence,
+          productPence: adjustment.productRefundPence,
+          shippingPence: adjustment.shippingRefundPence,
+          commissionReversalPence: adjustment.commissionReversalPence,
+          status: "APPROVED",
+          reason: input.reason,
+          idempotencyKey: input.idempotencyKey,
+        },
+      });
+      if (adjustment.vendorDeductionPence) {
+        await tx.ledgerEntry.create({
+          data: {
+            vendorId: vo.vendorId,
+            vendorOrderId: vo.id,
+            type: "REFUND_DEDUCTION",
+            amountPence: adjustment.vendorDeductionPence,
+            note: input.reason,
+          },
+        });
+      }
+      if (adjustment.commissionReversalPence) {
+        await tx.ledgerEntry.create({
+          data: {
+            vendorId: vo.vendorId,
+            vendorOrderId: vo.id,
+            type: "COMMISSION_REVERSAL",
+            amountPence: adjustment.commissionReversalPence,
+            note: input.reason,
+          },
+        });
+      }
+      return refund;
+    });
+  } catch (error) {
+    const again = await prisma.refund.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+    if (again) return again;
+    throw error;
   }
-  return prisma.withdrawalRequest.create({
-    data: { vendorId, amountPence, status: "PENDING" },
+}
+
+export async function completePayout(id: string, status: string, reviewedBy: string, reason?: string) {
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.withdrawalRequest.findUnique({ where: { id } });
+    if (!current) throw new CommerceError("Payout not found.");
+    if (!canCompletePayout(current.status)) return current;
+    const claimed = await tx.withdrawalRequest.updateMany({
+      where: { id, status: current.status },
+      data: { status, reason, reviewedBy, processedAt: new Date() },
+    });
+    if (!claimed.count) return current;
+    if (status === "COMPLETED") {
+      await tx.ledgerEntry.create({
+        data: {
+          vendorId: current.vendorId,
+          type: "PAYOUT",
+          amountPence: current.amountPence,
+          note: `Withdrawal ${current.id}`,
+        },
+      });
+    }
+    return tx.withdrawalRequest.findUniqueOrThrow({ where: { id } });
   });
 }

@@ -12,10 +12,15 @@ export default async function EarningsPage() {
   ]);
   return (
     <>
-      <PageHeader title="Earnings ledger" description="This is an auditable ledger, not an editable wallet. Settlement is not legal escrow." />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card>Pending {formatGbp(balances.pendingPence)}</Card>
+      <PageHeader title="Earnings ledger" description="Product commission and shipping are recorded separately. Shipping fees are yours in full. Funds stay on hold for the escrow window." />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Card>Product proceeds {formatGbp(balances.productProceedsPence)}</Card>
+        <Card>Shipping collected {formatGbp(balances.shippingPence)}</Card>
+        <Card>Platform commission {formatGbp(balances.commissionPence)}</Card>
+        <Card>Pending escrow {formatGbp(balances.pendingPence)}</Card>
         <Card>Available {formatGbp(balances.availablePence)}</Card>
+        <Card>Paid out {formatGbp(balances.withdrawnPence)}</Card>
+        <Card>Refunds {formatGbp(balances.refundsPence)}</Card>
         <Card>Held {formatGbp(balances.heldPence)}</Card>
       </div>
       <ul className="mt-6 grid gap-2 text-sm">

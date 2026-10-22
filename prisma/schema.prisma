@@ -496,6 +496,10 @@ model VendorOrder {
   commissionBps       Int
   commissionPence     Int
   vendorNetPence      Int
+  discountPence       Int       @default(0)
+  allocationVersion   Int       @default(1)
+  shippingMethodName  String?
+  shippingMethodCode  String?
   trackingCarrier     String?
   trackingNumber      String?
   trackingUrl         String?
@@ -620,13 +624,18 @@ model WithdrawalRequest {
 }
 
 model Refund {
-  id            String   @id @default(cuid())
-  disputeId     String?
-  orderId       String?
-  amountPence   Int
-  status        String
-  reason        String
-  createdAt     DateTime @default(now())
+  id                       String   @id @default(cuid())
+  disputeId                String?
+  orderId                  String?
+  vendorOrderId            String?
+  amountPence              Int
+  productPence             Int      @default(0)
+  shippingPence            Int      @default(0)
+  commissionReversalPence  Int      @default(0)
+  status                   String
+  reason                   String
+  idempotencyKey           String?  @unique
+  createdAt                DateTime @default(now())
 }
 
 model Dispute {

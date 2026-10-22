@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSessionUser, requirePermission, requireUser } from "@/lib/auth";
 import { checkoutActor } from "@/lib/checkout-actor";
-import { writeCheckoutDraft } from "@/lib/checkout-draft";
+import { readCheckoutDraft, writeCheckoutDraft } from "@/lib/checkout-draft";
 import { addDemoCartItem, setDemoCartQuantity } from "@/lib/demo-cart";
 import { addGuestCartItem, setGuestCartQuantity } from "@/lib/guest-cart";
 import { demoProductById } from "@/lib/demo-catalog";
@@ -16,7 +16,10 @@ import {
   assertListingLimit,
   CommerceError,
   confirmCustomerDelivery,
+  completePayout,
   confirmPayment,
+  refundVendorOrder,
+  releaseDisputeHold,
   requestWithdrawal,
   trimPublishedListings,
   vendorHasChosenPlan,
@@ -234,6 +237,10 @@ export async function checkoutAction(formData: FormData) {
     return { error: "Enter a full name and a complete UK delivery address." };
   }
   const coupon = String(formData.get("coupon") ?? "").trim();
+  const shippingMethodIds: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string" && key.startsWith("method_")) shippingMethodIds[key.slice("method_".length)] = value;
+  }
   const built = await buildCheckoutDraft(
     user,
     {
@@ -244,6 +251,33 @@ export async function checkoutAction(formData: FormData) {
       shippingPostcode: located.postcode,
     },
     coupon || undefined,
+    shippingMethodIds,
+  );
+  if ("error" in built) return built;
+  await writeCheckoutDraft(built.draft);
+  redirect("/checkout/pay");
+}
+
+export async function updateCheckoutDelivery(formData: FormData) {
+  const user = await checkoutActor();
+  if (!user) redirect("/login?next=/checkout");
+  const draft = await readCheckoutDraft();
+  if (!draft || draft.userId !== user.id) return { error: "This checkout has expired." };
+  const shippingMethodIds: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string" && key.startsWith("method_")) shippingMethodIds[key.slice("method_".length)] = value;
+  }
+  const built = await buildCheckoutDraft(
+    user,
+    {
+      shippingName: draft.shippingName,
+      shippingLine1: draft.shippingLine1,
+      shippingCity: draft.shippingCity,
+      shippingRegion: draft.shippingRegion,
+      shippingPostcode: draft.shippingPostcode,
+    },
+    draft.coupon,
+    shippingMethodIds,
   );
   if ("error" in built) return built;
   await writeCheckoutDraft(built.draft);
@@ -368,24 +402,19 @@ export async function adminResolveDispute(id: string, status: string, refundPenc
     data: { status, resolvedAt: new Date() },
     include: { vendorOrder: true },
   });
+  await releaseDisputeHold(dispute.vendorOrderId);
   if (refundPence && refundPence > 0) {
-    await prisma.refund.create({
-      data: {
-        disputeId: id,
-        orderId: dispute.vendorOrder.orderId,
-        amountPence: refundPence,
-        status: "APPROVED",
-        reason: `Dispute ${id}`,
-      },
-    });
-    await prisma.ledgerEntry.create({
-      data: {
-        vendorId: dispute.vendorOrder.vendorId,
-        vendorOrderId: dispute.vendorOrderId,
-        type: "REFUND_DEDUCTION",
-        amountPence: refundPence,
-        note: "Refund from dispute",
-      },
+    const eligible =
+      dispute.vendorOrder.allocationVersion >= 2
+        ? dispute.vendorOrder.subtotalPence - dispute.vendorOrder.discountPence
+        : dispute.vendorOrder.subtotalPence;
+    await refundVendorOrder({
+      vendorOrderId: dispute.vendorOrderId,
+      productRefundPence: Math.min(refundPence, Math.max(0, eligible)),
+      shippingRefundPence: 0,
+      reason: `Dispute ${id}`,
+      idempotencyKey: `dispute_${id}`,
+      disputeId: id,
     });
   }
   await audit({ actorId: actor.id, action: "dispute.resolve", entity: "Dispute", entityId: id, metadata: { status } });
@@ -987,20 +1016,8 @@ export async function adminSaveReminder(formData: FormData) {
 
 export async function adminReviewPayout(id: string, status: string, reason?: string) {
   const user = await requirePermission("admin.finance.manage");
-  const wr = await prisma.withdrawalRequest.update({
-    where: { id },
-    data: { status, reason, reviewedBy: user.id, processedAt: new Date() },
-  });
-  if (status === "COMPLETED") {
-    await prisma.ledgerEntry.create({
-      data: {
-        vendorId: wr.vendorId,
-        type: "PAYOUT",
-        amountPence: wr.amountPence,
-        note: `Withdrawal ${wr.id}`,
-      },
-    });
-  }
+  await completePayout(id, status, user.id, reason);
+  await audit({ actorId: user.id, action: "payout.review", entity: "WithdrawalRequest", entityId: id, metadata: { status } });
   revalidatePath("/admin/payouts");
 }
 

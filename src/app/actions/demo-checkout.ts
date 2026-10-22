@@ -39,6 +39,7 @@ export async function payWithDemoStripe(formData: FormData) {
         shippingRegion: draft.shippingRegion,
         shippingPostcode: draft.shippingPostcode,
         couponCode: draft.coupon,
+        shippingMethodIds: Object.fromEntries((draft.vendors ?? []).map((vendor) => [vendor.vendorId, vendor.shippingMethodId])),
       });
       await confirmPayment(order.id, `demo_stripe_${order.id}`, `demo_stripe_${order.id}`);
       orderId = order.id;

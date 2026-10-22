@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
+import { coveredCommissionBps } from "@/lib/allocation";
 import { vendorBalances, getActivePlanForVendor, countActiveListings } from "@/lib/commerce";
 import { formatGbp } from "@/lib/money";
 import { Badge, EmptyState } from "@/components/ui";
@@ -112,7 +113,7 @@ async function VendorHomeLive(vendorId: string) {
             <li>
               <p className="font-semibold text-ink">Plan</p>
               <p className="text-muted">
-                {plan.name} · {plan.commissionBps / 100}% commission
+                {plan.name} · {coveredCommissionBps(plan) / 100}% commission on product sales
               </p>
               <Link href="/vendor/subscription" className="text-xs font-bold text-ink underline-offset-4 hover:underline">
                 Upgrade or downgrade

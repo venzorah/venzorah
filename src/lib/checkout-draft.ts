@@ -13,6 +13,18 @@ export type CheckoutLine = {
   unitPence: number;
 };
 
+export type CheckoutVendorQuote = {
+  vendorId: string;
+  name: string;
+  productSubtotalPence: number;
+  discountPence: number;
+  shippingPence: number;
+  shippingMethodId: string;
+  shippingMethodName: string;
+  shippingMethodCode: string;
+  methods: { id: string; name: string; code: string; pricePence: number }[];
+};
+
 export type CheckoutDraft = {
   userId: string;
   shippingName: string;
@@ -24,8 +36,10 @@ export type CheckoutDraft = {
   cartId?: string;
   demoProductIds: { productId: string; quantity: number }[];
   lines: CheckoutLine[];
+  vendors?: CheckoutVendorQuote[];
   subtotalPence: number;
   shippingPence: number;
+  discountPence?: number;
   taxPence: number;
   totalPence: number;
 };

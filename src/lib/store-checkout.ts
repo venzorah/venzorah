@@ -1,8 +1,9 @@
+import { allocateOrder, chooseShippingQuote, coveredCommissionBps } from "./allocation";
 import { prisma } from "./db";
-import { CommerceError, shippingQuote } from "./commerce";
+import { CommerceError, getActivePlanForVendor, shippingQuote } from "./commerce";
 import type { AuthUser } from "./auth";
 import { isDemoActor } from "./checkout-actor";
-import type { CheckoutDraft, CheckoutLine } from "./checkout-draft";
+import type { CheckoutDraft, CheckoutLine, CheckoutVendorQuote } from "./checkout-draft";
 import { demoCartLines, demoCartTotals } from "./demo-cart";
 import { readGuestCart, clearGuestCart } from "./guest-cart";
 import { applyBps } from "./money";
@@ -80,6 +81,7 @@ export async function buildCheckoutDraft(
     shippingPostcode: string;
   },
   coupon?: string,
+  shippingMethodIds?: Record<string, string>,
 ): Promise<{ error: string } | { draft: CheckoutDraft }> {
   if (!isDemoActor(user)) {
     await mergeGuestCart(user.id).catch((error) => {
@@ -96,7 +98,9 @@ export async function buildCheckoutDraft(
   let subtotalPence = demo.reduce((sum, line) => sum + line.unitPence * line.quantity, 0);
   let shippingPence = demoCartTotals(subtotalPence).shippingPence;
   let taxPence = 0;
+  let discountPence = 0;
   let cartId: string | undefined;
+  let vendors: CheckoutVendorQuote[] | undefined;
 
   if (!isDemoActor(user)) {
     try {
@@ -109,11 +113,11 @@ export async function buildCheckoutDraft(
           list.push(item);
           grouped.set(item.product.vendorId, list);
         }
-        let dbSubtotal = 0;
-        let dbShipping = 0;
         const vatBps = Number(await getSetting("vatBps")) || 0;
         const vatMode = await getSetting("vatMode");
         const vatRate = vatMode ? vatBps : 0;
+        const charges = [];
+        const quotesByVendor = new Map<string, CheckoutVendorQuote["methods"]>();
         for (const [vendorId, items] of grouped) {
           const vendorSubtotal = items.reduce(
             (sum, item) =>
@@ -121,10 +125,28 @@ export async function buildCheckoutDraft(
             0,
           );
           const quotes = await shippingQuote(vendorId, address.shippingPostcode, vendorSubtotal);
-          const cheapest = [...quotes].sort((a, b) => a.pricePence - b.pricePence)[0];
-          dbShipping += cheapest?.pricePence ?? 0;
-          dbSubtotal += vendorSubtotal;
-          taxPence += applyBps(vendorSubtotal, vatRate);
+          let selected;
+          try {
+            selected = chooseShippingQuote(quotes, shippingMethodIds?.[vendorId]);
+          } catch (error) {
+            throw new CommerceError(error instanceof Error ? error.message : "Delivery is not available.");
+          }
+          const plan = await getActivePlanForVendor(vendorId);
+          quotesByVendor.set(
+            vendorId,
+            quotes.map((quote) => ({ id: quote.id, name: quote.name, code: quote.code, pricePence: quote.pricePence })),
+          );
+          charges.push({
+            vendorId,
+            vendorName: items[0]?.product.vendor.storeName ?? "Vendor",
+            productSubtotalPence: vendorSubtotal,
+            shippingPence: selected.pricePence,
+            shippingMethodId: selected.id,
+            shippingMethodName: selected.name,
+            shippingMethodCode: selected.code,
+            premium: coveredCommissionBps(plan) === 0 && plan.key !== "free",
+            taxPence: applyBps(vendorSubtotal, vatRate),
+          });
           for (const item of items) {
             lines.push({
               name: item.product.name,
@@ -134,8 +156,36 @@ export async function buildCheckoutDraft(
             });
           }
         }
-        subtotalPence += dbSubtotal;
-        shippingPence += dbShipping;
+        let dbDiscount = 0;
+        if (coupon) {
+          const found = await prisma.coupon.findUnique({ where: { code: coupon.toUpperCase() } });
+          const dbSubtotal = charges.reduce((sum, charge) => sum + charge.productSubtotalPence, 0);
+          if (
+            found &&
+            found.enabled &&
+            (!found.startsAt || found.startsAt <= new Date()) &&
+            (!found.endsAt || found.endsAt >= new Date()) &&
+            dbSubtotal >= found.minSubtotalPence
+          ) {
+            dbDiscount = found.type === "PERCENT" ? applyBps(dbSubtotal, found.value) : Math.min(found.value, dbSubtotal);
+          }
+        }
+        const allocation = allocateOrder(charges, dbDiscount);
+        subtotalPence += allocation.subtotalPence;
+        shippingPence += allocation.shippingPence;
+        taxPence += allocation.taxPence;
+        vendors = allocation.vendors.map((row) => ({
+          vendorId: row.vendorId,
+          name: row.vendorName,
+          productSubtotalPence: row.productSubtotalPence,
+          discountPence: row.discountPence,
+          shippingPence: row.shippingPence,
+          shippingMethodId: row.shippingMethodId,
+          shippingMethodName: row.shippingMethodName,
+          shippingMethodCode: row.shippingMethodCode,
+          methods: quotesByVendor.get(row.vendorId) ?? [],
+        }));
+        discountPence = allocation.discountPence;
       }
     } catch (error) {
       if (error instanceof CommerceError) return { error: error.message };
@@ -155,10 +205,12 @@ export async function buildCheckoutDraft(
       cartId,
       demoProductIds: demo.map((line) => ({ productId: line.id, quantity: line.quantity })),
       lines,
+      vendors,
       subtotalPence,
       shippingPence,
+      discountPence,
       taxPence,
-      totalPence: subtotalPence + shippingPence + taxPence,
+      totalPence: subtotalPence + shippingPence + taxPence - discountPence,
     },
   };
 }

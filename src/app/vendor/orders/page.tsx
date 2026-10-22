@@ -21,7 +21,9 @@ export default async function VendorOrdersPage() {
               <span className="font-bold">{o.order.number}</span>
               <Badge>{o.status}</Badge>
             </div>
-            <p className="text-sm">{formatGbp(o.vendorNetPence)} net after {o.commissionBps / 100}% commission</p>
+            <p className="text-sm">
+              Products {formatGbp(o.subtotalPence)} · Shipping {formatGbp(o.shippingPence)} · Commission {formatGbp(o.commissionPence)} · You receive {formatGbp(o.vendorNetPence)}
+            </p>
           </Link>
         ))}
       </div>

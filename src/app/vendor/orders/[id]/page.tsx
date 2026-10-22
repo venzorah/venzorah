@@ -20,6 +20,10 @@ export default async function VendorOrderDetail({ params }: { params: Promise<{ 
         Ship to {vo.order.shippingName}, {vo.order.shippingLine1}, {vo.order.shippingCity}
         {vo.order.shippingRegion ? `, ${vo.order.shippingRegion}` : ""} {vo.order.shippingPostcode}
       </p>
+      <p className="mt-3 text-sm">
+        Products {formatGbp(vo.subtotalPence)} · Shipping {formatGbp(vo.shippingPence)}
+        {vo.shippingMethodName ? ` (${vo.shippingMethodName})` : ""} · Commission {formatGbp(vo.commissionPence)} · You receive {formatGbp(vo.vendorNetPence)}
+      </p>
       {vo.items.map((i) => (
         <p key={i.id}>
           {i.nameSnapshot} × {i.quantity} · {formatGbp(i.totalPence)}

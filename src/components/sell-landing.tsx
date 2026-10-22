@@ -38,7 +38,7 @@ const STEPS = [
 const FAQS = [
   {
     q: "How much does it cost to sell on Venzorah?",
-    a: "Opening a vendor account is free. The Free plan allows 5 live listings at 5% commission. Paid plans lower commission to 3%.",
+    a: "Opening a vendor account is free. The Free plan allows 5 live listings at 5% commission on product sales. A paid plan charges no commission while it is active. Shipping fees are paid to you in full.",
   },
   {
     q: "When do I receive my payments?",

@@ -38,6 +38,11 @@ export default async function AdminOrdersPage() {
         {orders.map((o) => (
           <p key={o.id} className="rounded-xl border border-border bg-card p-3 text-sm">
             {o.number} · {o.user.email} · {o.status} · {formatGbp(o.totalPence)}
+            {o.vendorOrders.map((vendorOrder) => (
+              <span key={vendorOrder.id} className="mt-1 block text-muted">
+                Products {formatGbp(vendorOrder.subtotalPence)} · Shipping {formatGbp(vendorOrder.shippingPence)} · Commission {formatGbp(vendorOrder.commissionPence)} · Vendor {formatGbp(vendorOrder.vendorNetPence)}
+              </span>
+            ))}
           </p>
         ))}
       </div>
