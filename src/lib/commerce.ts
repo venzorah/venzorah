@@ -41,21 +41,33 @@ export async function assertListingLimit(vendorId: string) {
   return plan;
 }
 
-export async function applySubscriptionDowngrade(vendorId: string) {
-  const plan = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { key: "free" } });
-  const max = plan.maxActiveProducts ?? 5;
+export async function vendorHasChosenPlan(vendorId: string) {
+  const chosen = await prisma.billingEvent.findFirst({
+    where: { type: "SUBSCRIBE", subscription: { vendorId } },
+    select: { id: true },
+  });
+  return Boolean(chosen);
+}
+
+export async function trimPublishedListings(vendorId: string, maxActiveProducts: number | null) {
+  if (maxActiveProducts == null) return { deactivated: 0, kept: 0 };
   const published = await prisma.product.findMany({
     where: { vendorId, status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
   });
-  const excess = published.slice(max);
+  const excess = published.slice(maxActiveProducts);
   if (excess.length) {
     await prisma.product.updateMany({
-      where: { id: { in: excess.map((p) => p.id) } },
+      where: { id: { in: excess.map((product) => product.id) } },
       data: { status: "DRAFT" },
     });
   }
-  return { deactivated: excess.length, kept: Math.min(published.length, max) };
+  return { deactivated: excess.length, kept: Math.min(published.length, maxActiveProducts) };
+}
+
+export async function applySubscriptionDowngrade(vendorId: string) {
+  const plan = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { key: "free" } });
+  return trimPublishedListings(vendorId, plan.maxActiveProducts ?? 5);
 }
 
 export async function shippingQuote(vendorId: string, postcode: string, subtotalPence: number) {

@@ -25,9 +25,11 @@ const ERRORS: Record<string, string> = {
 export function LoginForm({
   error,
   initialPortal,
+  next,
 }: {
   error?: string;
   initialPortal: AuthPortal;
+  next?: string;
 }) {
   const [portal, setPortal] = useState<AuthPortal>(initialPortal);
   const seller = portal === "seller";
@@ -59,11 +61,13 @@ export function LoginForm({
       <p className="mb-4 text-sm text-muted">
         {seller ? "Access your seller portal, orders and store tools." : "Access your buyer account, orders and saved items."}
       </p>
+      {next === "/checkout" ? <p className="mb-4 text-sm text-ink">Sign in to continue to checkout.</p> : null}
       {error ? (
         <p className="mb-4 rounded-xl bg-error/10 px-3 py-2 text-sm text-error">{ERRORS[error] ?? ERRORS.oauth_failed}</p>
       ) : null}
       <ActionForm action={loginAction} successMessage={null} className="grid gap-4">
         <input type="hidden" name="portal" value={portal} />
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <Field label="Email">
           <Input name="email" type="email" autoComplete="email" required />
         </Field>
@@ -93,7 +97,7 @@ export function LoginForm({
         ) : (
           <>
             New here?{" "}
-            <Link href="/register" className="font-semibold text-ink underline-offset-2 hover:underline">
+            <Link href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"} className="font-semibold text-ink underline-offset-2 hover:underline">
               Create New Account
             </Link>
           </>

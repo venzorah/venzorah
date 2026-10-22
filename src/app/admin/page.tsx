@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { PageHeader, Badge } from "@/components/ui";
+import { Badge } from "@/components/ui";
+import { DashboardHero } from "@/components/dashboard-hero";
 import { StatCard } from "@/components/stat-card";
 import { formatGbp } from "@/lib/money";
 
@@ -17,7 +19,8 @@ export default async function AdminHome() {
 function AdminHomeEmpty() {
   return (
     <>
-      <PageHeader
+      <DashboardHero
+        eyebrow="Admin"
         title="Marketplace control centre"
         description="You are signed in. Sales, vendors and payouts appear once the live database is connected."
       />
@@ -75,7 +78,8 @@ async function AdminHomeLive() {
 
   return (
     <>
-      <PageHeader
+      <DashboardHero
+        eyebrow="Admin"
         title="Marketplace control centre"
         description="Sales, commission, vendors and payouts at a glance."
       />
@@ -94,6 +98,23 @@ async function AdminHomeLive() {
           accent={disputes ? "gold" : "success"}
         />
       </div>
+      <section className="mt-8 rounded-3xl bg-card p-5 ring-1 ring-border">
+        <h2 className="text-lg font-bold text-ink">Needs review</h2>
+        <ul className="mt-3 divide-y divide-border">
+          {[
+            { href: "/admin/products", label: "Products awaiting review", count: pendingProducts },
+            { href: "/admin/payouts", label: "Withdrawals to approve", count: pendingWithdrawals },
+            { href: "/admin/orders", label: "Open disputes", count: disputes },
+          ].map((item) => (
+            <li key={item.href}>
+              <Link href={item.href} className="flex items-center justify-between py-3 text-sm">
+                <span className="font-semibold text-ink">{item.label}</span>
+                <span className="rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-navy">{item.count}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
       <h2 className="mt-8 mb-3 text-lg font-bold text-ink">Active subscriptions</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {plans.map((p) => (

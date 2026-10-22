@@ -7,25 +7,39 @@ import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { staticCategories } from "@/lib/category-display";
 import { dbErrorText, ensureDemoCatalog } from "@/lib/ensure-catalog";
+import { readDemoCart } from "@/lib/demo-cart";
+import { readGuestCart } from "@/lib/guest-cart";
 import { ROLE_KEYS } from "@/lib/permissions";
+
+async function cartCountFor(userId: string | null) {
+  const demoCount = (await readDemoCart()).reduce((sum, item) => sum + item.quantity, 0);
+  const guestCount = userId ? 0 : (await readGuestCart()).reduce((sum, item) => sum + item.quantity, 0);
+  if (!userId) return demoCount + guestCount;
+  try {
+    const stored = await prisma.cartItem.count({ where: { cart: { userId } } });
+    return stored + demoCount;
+  } catch {
+    return demoCount;
+  }
+}
 
 async function loadHeader() {
   const ready = await ensureDemoCatalog();
-  if (!ready) return { user: null, categories: staticCategories(), cartCount: 0 };
+  if (!ready) return { user: null, categories: staticCategories(), cartCount: await cartCountFor(null) };
   const user = await getSessionUser();
   const categories = await prisma.category.findMany({
     where: { enabled: true, parentId: null },
     orderBy: { sortOrder: "asc" },
     take: 24,
   });
-  const cartCount = user ? await prisma.cartItem.count({ where: { cart: { userId: user.id } } }) : 0;
+  const cartCount = await cartCountFor(user?.id.startsWith("demo-") ? null : (user?.id ?? null));
   return { user, categories, cartCount };
 }
 
 export async function StorefrontHeader() {
-  const loaded = await loadHeader().catch((error) => {
+  const loaded = await loadHeader().catch(async (error) => {
     console.error("Storefront header skipped the database:", dbErrorText(error));
-    return { user: null, categories: staticCategories(), cartCount: 0 };
+    return { user: null, categories: staticCategories(), cartCount: await cartCountFor(null) };
   });
   const { user, categories, cartCount } = loaded;
 

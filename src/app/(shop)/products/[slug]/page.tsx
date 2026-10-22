@@ -111,6 +111,9 @@ function DemoProductPage({ product }: { product: DemoProduct }) {
             ))}
           </dl>
         ) : null}
+        <div className="mt-6">
+          <AddToCartButton productId={product.id} variantId={product.variants?.[0]?.id} name={product.name} />
+        </div>
         <div className="mt-3">
           <ShareButton title={product.name} text={`Shop ${product.name} on Venzorah`} />
         </div>

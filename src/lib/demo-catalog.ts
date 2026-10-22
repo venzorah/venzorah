@@ -198,6 +198,10 @@ export function demoProductBySlug(slug: string) {
   return PRODUCTS.find((product) => product.slug === slug) ?? null;
 }
 
+export function demoProductById(id: string) {
+  return PRODUCTS.find((product) => product.id === id) ?? null;
+}
+
 export function filterDemoProducts(query?: string, category?: string) {
   const needle = query?.trim().toLowerCase();
   return demoProducts().filter((product) => {

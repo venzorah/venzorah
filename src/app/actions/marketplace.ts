@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSessionUser, requirePermission, requireUser } from "@/lib/auth";
+import { checkoutActor } from "@/lib/checkout-actor";
+import { writeCheckoutDraft } from "@/lib/checkout-draft";
+import { addDemoCartItem, setDemoCartQuantity } from "@/lib/demo-cart";
+import { addGuestCartItem, setGuestCartQuantity } from "@/lib/guest-cart";
+import { demoProductById } from "@/lib/demo-catalog";
+import { buildCheckoutDraft } from "@/lib/store-checkout";
 import { audit, notify } from "@/lib/audit";
 import {
   adjustStock,
@@ -11,10 +17,11 @@ import {
   CommerceError,
   confirmCustomerDelivery,
   confirmPayment,
-  createOrderFromCart,
   requestWithdrawal,
+  trimPublishedListings,
+  vendorHasChosenPlan,
 } from "@/lib/commerce";
-import { uniqueSlug } from "@/lib/utils";
+import { slugify, uniqueSlug } from "@/lib/utils";
 import { parseGbpToPence } from "@/lib/money";
 import { getSetting, setSetting, truthy } from "@/lib/settings";
 import { savePrivateUpload, savePublicUpload } from "@/lib/uploads";
@@ -36,7 +43,43 @@ export async function addToCartFromForm(formData: FormData) {
 }
 
 export async function addToCart(productId: string, quantity = 1, variantId?: string) {
-  const user = await requireUser();
+  if (productId.startsWith("demo-")) {
+    if (!demoProductById(productId)) return { error: "This product cannot be purchased." };
+    await addDemoCartItem(productId, quantity);
+    revalidatePath("/cart");
+    revalidatePath("/");
+    revalidatePath("/products");
+    return { ok: true };
+  }
+  const user = await getSessionUser();
+  if (!user) {
+    try {
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+        include: { vendor: true, variants: true },
+      });
+      if (!product || product.status !== "PUBLISHED") return { error: "This product cannot be purchased." };
+      const variant = variantId
+        ? product.variants.find((item) => item.id === variantId)
+        : product.variants[0];
+      if (!variant) return { error: "This product has no purchasable option." };
+      await addGuestCartItem({
+        productId: product.id,
+        variantId: variant.id,
+        quantity,
+        name: product.name,
+        unitPence: variant.pricePence ?? product.salePricePence ?? product.pricePence,
+        vendor: product.vendor.storeName,
+      });
+      revalidatePath("/cart");
+      revalidatePath("/");
+      revalidatePath("/products");
+      return { ok: true };
+    } catch (error) {
+      console.error("[cart] guest add failed", error instanceof Error ? error.message : error);
+      return { error: "This product could not be added just now." };
+    }
+  }
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product || product.status !== "PUBLISHED") return { error: "This product cannot be purchased." };
   const cart = await getOrCreateCart(user.id);
@@ -62,7 +105,20 @@ export async function addToCart(productId: string, quantity = 1, variantId?: str
 }
 
 export async function updateCartItem(itemId: string, quantity: number) {
-  const user = await requireUser();
+  if (itemId.startsWith("demo-")) {
+    await setDemoCartQuantity(itemId, quantity);
+    revalidatePath("/cart");
+    revalidatePath("/");
+    return;
+  }
+  if (itemId.startsWith("guest:")) {
+    await setGuestCartQuantity(itemId.slice("guest:".length), quantity);
+    revalidatePath("/cart");
+    revalidatePath("/");
+    return;
+  }
+  const user = await getSessionUser();
+  if (!user) return { error: "Sign in to change this item." };
   const item = await prisma.cartItem.findFirst({
     where: { id: itemId, cart: { userId: user.id } },
   });
@@ -135,34 +191,24 @@ export async function updateProfile(formData: FormData) {
 }
 
 export async function checkoutAction(formData: FormData) {
-  const user = await requireUser();
-  const cart = await prisma.cart.findFirst({ where: { userId: user.id } });
-  if (!cart) return { error: "Cart is empty." };
-  let orderId = "";
-  try {
-    const order = await createOrderFromCart({
-      userId: user.id,
-      cartId: cart.id,
-      shippingName: String(formData.get("shippingName") ?? user.name),
-      shippingLine1: String(formData.get("shippingLine1") ?? ""),
-      shippingCity: String(formData.get("shippingCity") ?? ""),
-      shippingPostcode: String(formData.get("shippingPostcode") ?? ""),
-      couponCode: String(formData.get("coupon") ?? "") || undefined,
-    });
-    const payment = await confirmPayment(order.id, `sandbox_${order.id}`, `pay_${order.id}`);
-    await audit({
-      actorId: user.id,
-      action: "order.paid",
-      entity: "Order",
-      entityId: order.id,
-      metadata: { provider: payment.provider },
-    });
-    orderId = order.id;
-  } catch (error) {
-    console.error("checkoutAction", error);
-    return { error: error instanceof CommerceError ? error.message : "Checkout failed." };
+  const user = await checkoutActor();
+  if (!user) redirect("/login?next=/checkout");
+  const shippingName = String(formData.get("shippingName") ?? user.name).trim();
+  const shippingLine1 = String(formData.get("shippingLine1") ?? "").trim();
+  const shippingCity = String(formData.get("shippingCity") ?? "").trim();
+  const shippingPostcode = String(formData.get("shippingPostcode") ?? "").trim().toUpperCase();
+  if (shippingName.length < 2 || shippingLine1.length < 3 || shippingCity.length < 2 || shippingPostcode.length < 5) {
+    return { error: "Enter a full name and a complete UK delivery address." };
   }
-  redirect(`/account/orders/${orderId}?paid=1`);
+  const coupon = String(formData.get("coupon") ?? "").trim();
+  const built = await buildCheckoutDraft(
+    user,
+    { shippingName, shippingLine1, shippingCity, shippingPostcode },
+    coupon || undefined,
+  );
+  if ("error" in built) return built;
+  await writeCheckoutDraft(built.draft);
+  redirect("/checkout/pay");
 }
 
 export async function completeSandboxPayment(formData: FormData) {
@@ -500,6 +546,9 @@ export async function submitKyc(formData: FormData) {
 export async function saveProduct(formData: FormData) {
   const user = await requirePermission("vendor.product.create");
   if (!user.vendorId) return { error: "Vendor profile missing." };
+  if (!(await vendorHasChosenPlan(user.vendorId))) {
+    return { error: "Choose a subscription plan before listing a product." };
+  }
   const id = String(formData.get("id") ?? "");
   const statusIntent = String(formData.get("status") ?? "DRAFT");
   const needsApproval = truthy(await getSetting("productsRequireApproval"));
@@ -708,8 +757,19 @@ export async function subscribePlan(planId: string) {
     where: { vendorId: user.vendorId, id: { not: sub.id }, status: "ACTIVE" },
     data: { status: "REPLACED" },
   });
-  await notify(user.id, "Subscription updated", `You are now on the ${plan.name} plan.`, "/vendor/subscription");
+  const trimmed = await trimPublishedListings(user.vendorId, plan.maxActiveProducts);
+  const draftNote =
+    trimmed.deactivated > 0
+      ? ` ${trimmed.deactivated} newer listing${trimmed.deactivated === 1 ? "" : "s"} moved to draft. Nothing was deleted.`
+      : "";
+  await notify(
+    user.id,
+    "Subscription updated",
+    `You are now on the ${plan.name} plan.${draftNote}`,
+    "/vendor/subscription",
+  );
   revalidatePath("/vendor/subscription");
+  revalidatePath("/vendor/products");
 }
 
 export async function adminSaveSetting(formData: FormData) {
@@ -820,6 +880,57 @@ export async function adminSavePlan(formData: FormData) {
   };
   if (id) await prisma.subscriptionPlan.update({ where: { id }, data });
   revalidatePath("/admin/plans");
+}
+
+export async function adminCreatePlan(formData: FormData) {
+  await requirePermission("admin.subscription.manage");
+  const name = String(formData.get("name") ?? "").trim();
+  if (name.length < 2) return { error: "Give the plan a name." };
+  const interval = String(formData.get("interval") ?? "MONTH");
+  if (!["NONE", "MONTH", "SIX_MONTH", "YEAR"].includes(interval)) return { error: "Choose a billing interval." };
+  const key = slugify(name) || `plan-${Date.now()}`;
+  const taken = await prisma.subscriptionPlan.findUnique({ where: { key } });
+  if (taken) return { error: "A plan with that name already exists." };
+  const sortOrder = (await prisma.subscriptionPlan.count()) + 1;
+  await prisma.subscriptionPlan.create({
+    data: {
+      key,
+      name,
+      interval,
+      pricePence: parseGbpToPence(String(formData.get("price") ?? "0")),
+      commissionBps: Number(formData.get("commissionBps") ?? 300),
+      maxActiveProducts: String(formData.get("maxActiveProducts") ?? "")
+        ? Number(formData.get("maxActiveProducts"))
+        : null,
+      openForSignup: true,
+      autoRenew: interval === "MONTH",
+      sortOrder,
+    },
+  });
+  revalidatePath("/admin/plans");
+  revalidatePath("/vendor/subscription");
+}
+
+export async function adminDeletePlan(formData: FormData) {
+  await requirePermission("admin.subscription.manage");
+  const id = String(formData.get("id") ?? "");
+  const plan = await prisma.subscriptionPlan.findUnique({ where: { id } });
+  if (!plan) return { error: "Plan not found." };
+  if (plan.key === "free") return { error: "The Free plan stays available so vendors can downgrade." };
+  const inUse = await prisma.vendorSubscription.count({
+    where: { planId: id, status: { in: ["ACTIVE", "GRACE"] } },
+  });
+  if (inUse > 0) return { error: "Move vendors off this plan before removing it." };
+  try {
+    await prisma.subscriptionPlan.delete({ where: { id } });
+  } catch (error) {
+    console.error("[plans] delete failed", error instanceof Error ? error.message : error);
+    return {
+      error: "This plan has past subscriptions, so it stays on record. Turn off Open for vendors to stop new sign-ups.",
+    };
+  }
+  revalidatePath("/admin/plans");
+  revalidatePath("/vendor/subscription");
 }
 
 export async function adminSaveReminder(formData: FormData) {

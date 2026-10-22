@@ -14,6 +14,7 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { isDatabaseFailure, matchDemoAccount, sessionDestination } from "@/lib/demo-access";
+import { safeNextPath } from "@/lib/safe-next";
 import { ROLE_KEYS } from "@/lib/permissions";
 import { audit, notify, sendTemplatedEmail } from "@/lib/audit";
 import { slugify } from "@/lib/utils";
@@ -59,7 +60,7 @@ export async function registerCustomer(formData: FormData) {
   } catch {
     return { error: "Could not create that account on the live database. Try again in a moment." };
   }
-  redirect("/account");
+  redirect(safeNextPath(formData.get("next")) ?? "/account");
 }
 
 export async function registerVendor(formData: FormData) {
@@ -125,6 +126,7 @@ export async function loginAction(formData: FormData) {
   const remember = String(formData.get("remember") ?? "") === "on";
   const portal = String(formData.get("portal") ?? "buyer");
   const days = remember ? 30 : 7;
+  const next = safeNextPath(formData.get("next"));
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
@@ -142,7 +144,7 @@ export async function loginAction(formData: FormData) {
       return { error: "This sign-in is for Venzorah staff only. Use the customer or seller login." };
     }
     await createSession(user.id, days);
-    redirect(sessionDestination(keys, portal));
+    redirect(next ?? sessionDestination(keys, portal));
   } catch (error) {
     unstable_rethrow(error);
     if (!isDatabaseFailure(error)) {
@@ -157,7 +159,7 @@ export async function loginAction(formData: FormData) {
     return { error: "This sign-in is for Venzorah staff only. Use the customer or seller login." };
   }
   await createDemoSession(demo.id, days);
-  redirect(sessionDestination(demo.roles, portal));
+  redirect(next ?? sessionDestination(demo.roles, portal));
 }
 
 export async function logoutAction() {

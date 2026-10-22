@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { PageHeader, Badge, EmptyState } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
+import { DashboardHero } from "@/components/dashboard-hero";
 import { StatCard } from "@/components/stat-card";
 import { formatGbp } from "@/lib/money";
 
@@ -32,11 +33,12 @@ export default async function AccountHome() {
   }
   return (
     <>
-      <PageHeader
+      <DashboardHero
+        eyebrow="Your account"
         title={`Welcome back, ${user.name.split(" ")[0]}`}
         description="Your orders, saved items and account tools in one place."
         action={
-          <Link href="/products" className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">
+          <Link href="/products" className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-navy">
             Continue shopping
           </Link>
         }
@@ -47,6 +49,21 @@ export default async function AccountHome() {
         <StatCard label="Reviews" value={reviews} hint="Shared with vendors" accent="navy" />
         <StatCard label="Open returns" value={returns} hint="Needs attention" accent={returns ? "gold" : "success"} />
       </div>
+      {orders[0] ? (
+        <Link
+          href={`/account/orders/${orders[0].id}`}
+          className="mt-6 flex items-center justify-between gap-3 rounded-3xl bg-card p-5 ring-1 ring-border"
+        >
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">Latest order</p>
+            <p className="mt-1 font-bold text-ink">{orders[0].number}</p>
+            <p className="text-sm text-muted">{formatGbp(orders[0].totalPence)}</p>
+          </div>
+          <Badge tone={orders[0].status === "PAID" || orders[0].status === "DELIVERED" ? "success" : "navy"}>
+            {orders[0].status}
+          </Badge>
+        </Link>
+      ) : null}
       <div className="mt-8 flex items-end justify-between">
         <h2 className="text-lg font-bold text-ink">Recent orders</h2>
         <Link href="/account/orders" className="text-sm font-semibold text-muted hover:text-ink">

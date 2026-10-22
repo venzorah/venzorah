@@ -1,64 +1,50 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { formatGbp } from "@/lib/money";
 import { updateCartItem } from "@/app/actions/marketplace";
 import { Button, EmptyState, PageHeader } from "@/components/ui";
+import { storeCartLines } from "@/lib/store-checkout";
 
 export default async function CartPage() {
   const user = await getSessionUser();
-  if (!user) {
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-16">
-        <EmptyState title="Sign in to use your cart.">
-          <Link href="/login" className="mt-3 inline-block font-semibold">
-            Sign in
-          </Link>
-        </EmptyState>
-      </main>
-    );
-  }
-  const cart = await prisma.cart.findFirst({
-    where: { userId: user.id },
-    include: { items: { include: { product: true, variant: true } } },
-  });
-  const items = cart?.items ?? [];
-  const total = items.reduce(
-    (sum, item) => sum + (item.variant.pricePence ?? item.product.pricePence) * item.quantity,
-    0,
-  );
+  const lines = await storeCartLines(user);
+  const total = lines.reduce((sum, line) => sum + line.unitPence * line.quantity, 0);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <PageHeader title="Your cart" />
-      {items.length === 0 ? (
-        <EmptyState title="Your cart is empty." />
+      <PageHeader title="Your cart" description="You can review items before signing in. Checkout asks you to sign in." />
+      {lines.length === 0 ? (
+        <EmptyState title="Your cart is empty.">
+          <Link href="/products" className="mt-3 inline-block font-semibold">
+            Browse products
+          </Link>
+        </EmptyState>
       ) : (
         <div className="grid gap-4">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+          {lines.map((line) => (
+            <div key={`${line.source}-${line.id}`} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold">{item.product.name}</p>
+                <p className="font-semibold">{line.name}</p>
                 <p className="text-sm text-muted">
-                  {item.variant.name} · {formatGbp(item.variant.pricePence ?? item.product.pricePence)}
+                  {line.vendor} · {formatGbp(line.unitPence)}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <form action={async () => { "use server"; await updateCartItem(item.id, item.quantity - 1); }}>
+                <form action={async () => { "use server"; await updateCartItem(line.id, line.quantity - 1); }}>
                   <Button type="submit" variant="secondary" aria-label="Decrease quantity">
                     −
                   </Button>
                 </form>
-                <span className="min-w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                <form action={async () => { "use server"; await updateCartItem(item.id, item.quantity + 1); }}>
+                <span className="min-w-6 text-center text-sm font-semibold">{line.quantity}</span>
+                <form action={async () => { "use server"; await updateCartItem(line.id, line.quantity + 1); }}>
                   <Button type="submit" variant="secondary" aria-label="Increase quantity">
                     +
                   </Button>
                 </form>
-                <form action={async () => { "use server"; await updateCartItem(item.id, 0); }}>
+                <form action={async () => { "use server"; await updateCartItem(line.id, 0); }}>
                   <button
                     type="submit"
-                    aria-label={`Remove ${item.product.name}`}
+                    aria-label={`Remove ${line.name}`}
                     className="tap-target inline-flex h-10 w-10 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-error"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
@@ -74,7 +60,7 @@ export default async function CartPage() {
           ))}
           <p className="text-right text-lg font-bold">Subtotal {formatGbp(total)}</p>
           <Link href="/checkout">
-            <Button className="w-full">Checkout</Button>
+            <Button className="w-full rounded-full">Checkout</Button>
           </Link>
         </div>
       )}

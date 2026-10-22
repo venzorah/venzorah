@@ -15,10 +15,12 @@ export function DashboardShell({
   title,
   items,
   children,
+  footer,
 }: {
   title: string;
   items: NavItem[];
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -60,6 +62,7 @@ export function DashboardShell({
         <div className="fixed inset-0 z-30 bg-navy-deep p-4 pt-20 lg:hidden">
           <p className="mb-3 text-xs uppercase tracking-wider text-gold">{title}</p>
           {nav}
+          {footer ? <div className="mt-4">{footer}</div> : null}
         </div>
       ) : null}
       <div className="mx-auto grid max-w-[90rem] lg:grid-cols-[15.5rem_1fr]">
@@ -67,6 +70,7 @@ export function DashboardShell({
           <BrandMark href="/" className="mb-8 [&_span]:text-white" size={44} />
           <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gold">{title}</p>
           <div className="flex-1">{nav}</div>
+          {footer}
           <ThemeToggle className="mt-6 w-full border-white/20 bg-white/10 text-white hover:bg-white/20" />
           <Link href="/" className="mt-3 text-sm text-white/70 hover:text-gold">
             Back to marketplace
@@ -77,7 +81,7 @@ export function DashboardShell({
             </Button>
           </form>
         </aside>
-        <main className="min-w-0 p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 lg:p-8">{children}</main>
+        <main className="min-w-0 bg-background p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
