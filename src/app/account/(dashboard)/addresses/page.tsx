@@ -1,16 +1,19 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { deleteAddress, saveAddress } from "@/app/actions/marketplace";
+import { deleteAddress, saveAddress, setDefaultAddress } from "@/app/actions/marketplace";
 import { ActionForm } from "@/components/forms";
 import { UkAddressFields } from "@/components/uk-address-fields";
 import { Button, Field, Input, PageHeader, Card } from "@/components/ui";
 
 export default async function AddressesPage() {
   const user = await requireUser();
-  const addresses = await prisma.address.findMany({ where: { userId: user.id } });
+  const addresses = await prisma.address.findMany({ where: { userId: user.id }, orderBy: { isDefault: "desc" } });
   return (
     <>
-      <PageHeader title="Delivery addresses" description="UK postcodes are required. Unsupported destinations are blocked at checkout." />
+      <PageHeader
+        title="Delivery addresses"
+        description="Add as many UK addresses as you need. The default postcode is shown at the top of the shop, and you can pick a different one at checkout."
+      />
       <div className="grid gap-3">
         {addresses.map((a) => (
           <Card key={a.id}>
@@ -21,11 +24,20 @@ export default async function AddressesPage() {
               {a.line1}, {a.city}
               {a.region ? `, ${a.region}` : ""} {a.postcode}
             </p>
-            <form action={async () => { "use server"; await deleteAddress(a.id); }}>
-              <Button type="submit" variant="ghost">
-                Delete
-              </Button>
-            </form>
+            <div className="mt-2 flex gap-2">
+              {a.isDefault ? null : (
+                <form action={async () => { "use server"; await setDefaultAddress(a.id); }}>
+                  <Button type="submit" variant="secondary">
+                    Use for delivery
+                  </Button>
+                </form>
+              )}
+              <form action={async () => { "use server"; await deleteAddress(a.id); }}>
+                <Button type="submit" variant="ghost">
+                  Delete
+                </Button>
+              </form>
+            </div>
           </Card>
         ))}
       </div>

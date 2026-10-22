@@ -172,6 +172,8 @@ export async function saveAddress(formData: FormData) {
     isDefault: formData.get("isDefault") === "on",
   };
   if (data.line1.trim().length < 3) return { error: "Enter a complete UK address." };
+  const existing = await prisma.address.count({ where: { userId: user.id } });
+  if (!id && existing === 0) data.isDefault = true;
   if (data.isDefault) {
     await prisma.address.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
   }
@@ -181,12 +183,30 @@ export async function saveAddress(formData: FormData) {
     await prisma.address.create({ data: { ...data, userId: user.id } });
   }
   revalidatePath("/account/addresses");
+  revalidatePath("/");
+}
+
+export async function setDefaultAddress(id: string) {
+  const user = await requirePermission("customer.address.manage");
+  const found = await prisma.address.findFirst({ where: { id, userId: user.id } });
+  if (!found) return { error: "That address is not on your account." };
+  await prisma.address.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
+  await prisma.address.update({ where: { id: found.id }, data: { isDefault: true } });
+  revalidatePath("/account/addresses");
+  revalidatePath("/");
 }
 
 export async function deleteAddress(id: string) {
   const user = await requirePermission("customer.address.manage");
-  await prisma.address.deleteMany({ where: { id, userId: user.id } });
+  const found = await prisma.address.findFirst({ where: { id, userId: user.id } });
+  if (!found) return;
+  await prisma.address.delete({ where: { id: found.id } });
+  if (found.isDefault) {
+    const next = await prisma.address.findFirst({ where: { userId: user.id } });
+    if (next) await prisma.address.update({ where: { id: next.id }, data: { isDefault: true } });
+  }
   revalidatePath("/account/addresses");
+  revalidatePath("/");
 }
 
 export async function updateProfile(formData: FormData) {
@@ -227,13 +247,45 @@ export async function checkoutAction(formData: FormData) {
   const user = await checkoutActor();
   if (!user) redirect("/login?next=/checkout");
   const shippingName = String(formData.get("shippingName") ?? user.name).trim();
-  const shippingLine1 = String(formData.get("shippingLine1") ?? "").trim();
-  const located = await resolveUkAddress({
-    city: String(formData.get("shippingCity") ?? ""),
-    region: String(formData.get("shippingRegion") ?? ""),
-    postcode: String(formData.get("shippingPostcode") ?? ""),
-  });
-  if ("error" in located) return located;
+  const addressId = String(formData.get("addressId") ?? "");
+  let shippingLine1 = String(formData.get("shippingLine1") ?? "").trim();
+  let shippingCity = "";
+  let shippingRegion = "";
+  let shippingPostcode = "";
+  if (addressId && addressId !== "new" && !user.id.startsWith("demo-")) {
+    const saved = await prisma.address.findFirst({ where: { id: addressId, userId: user.id } });
+    if (!saved) return { error: "Choose one of your saved addresses, or enter a different one." };
+    shippingLine1 = saved.line1;
+    shippingCity = saved.city;
+    shippingRegion = saved.region ?? "";
+    shippingPostcode = saved.postcode;
+  } else {
+    const located = await resolveUkAddress({
+      city: String(formData.get("shippingCity") ?? ""),
+      region: String(formData.get("shippingRegion") ?? ""),
+      postcode: String(formData.get("shippingPostcode") ?? ""),
+    });
+    if ("error" in located) return located;
+    shippingLine1 = String(formData.get("shippingLine1") ?? "").trim();
+    shippingCity = located.city;
+    shippingRegion = located.region;
+    shippingPostcode = located.postcode;
+    if (formData.get("saveAddress") === "on" && !user.id.startsWith("demo-")) {
+      const count = await prisma.address.count({ where: { userId: user.id } });
+      await prisma.address.create({
+        data: {
+          userId: user.id,
+          label: String(formData.get("label") ?? "Delivery"),
+          line1: shippingLine1,
+          city: shippingCity,
+          region: shippingRegion,
+          postcode: shippingPostcode,
+          country: "GB",
+          isDefault: count === 0,
+        },
+      });
+    }
+  }
   if (shippingName.length < 2 || shippingLine1.length < 3) {
     return { error: "Enter a full name and a complete UK delivery address." };
   }
@@ -247,9 +299,9 @@ export async function checkoutAction(formData: FormData) {
     {
       shippingName,
       shippingLine1,
-      shippingCity: located.city,
-      shippingRegion: located.region,
-      shippingPostcode: located.postcode,
+      shippingCity,
+      shippingRegion,
+      shippingPostcode,
     },
     coupon || undefined,
     shippingMethodIds,

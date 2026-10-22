@@ -23,30 +23,52 @@ async function cartCountFor(userId: string | null) {
   }
 }
 
+async function deliveryPostcode(userId: string | null) {
+  if (!userId || userId.startsWith("demo-")) return null;
+  try {
+    const address =
+      (await prisma.address.findFirst({ where: { userId, isDefault: true } })) ??
+      (await prisma.address.findFirst({ where: { userId } }));
+    return address?.postcode ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadHeader() {
   const ready = await ensureDemoCatalog();
-  if (!ready) return { user: null, categories: staticCategories(), cartCount: await cartCountFor(null) };
+  if (!ready) return { user: null, categories: staticCategories(), cartCount: await cartCountFor(null), postcode: null };
   const user = await getSessionUser();
   const categories = await prisma.category.findMany({
     where: { enabled: true, parentId: null },
     orderBy: { sortOrder: "asc" },
     take: 24,
   });
-  const cartCount = await cartCountFor(user?.id.startsWith("demo-") ? null : (user?.id ?? null));
-  return { user, categories, cartCount };
+  const signedInId = user?.id.startsWith("demo-") ? null : (user?.id ?? null);
+  const cartCount = await cartCountFor(signedInId);
+  const postcode = await deliveryPostcode(signedInId);
+  return { user, categories, cartCount, postcode };
 }
 
 export async function StorefrontHeader() {
   const loaded = await loadHeader().catch(async (error) => {
     console.error("Storefront header skipped the database:", dbErrorText(error));
-    return { user: null, categories: staticCategories(), cartCount: await cartCountFor(null) };
+    return { user: null, categories: staticCategories(), cartCount: await cartCountFor(null), postcode: null };
   });
-  const { user, categories, cartCount } = loaded;
+  const { user, categories, cartCount, postcode } = loaded;
+  const deliverHref = user ? "/account/addresses" : "/login?next=/account/addresses";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
         <BrandMark size={48} className="[&_span]:text-xl" />
+        <Link href={deliverHref} className="hidden min-w-[7.5rem] items-center gap-2 sm:inline-flex">
+          <DeliverPin />
+          <span className="leading-tight">
+            <span className="block text-[10px] font-medium text-muted">Deliver to</span>
+            <span className="block text-sm font-bold text-ink">{postcode ?? "Add a postcode"}</span>
+          </span>
+        </Link>
         <form action="/search" className="hidden min-w-0 flex-1 max-w-xl md:block">
           <label className="sr-only" htmlFor="q">
             Search African products
@@ -109,6 +131,13 @@ export async function StorefrontHeader() {
           </Link>
         </div>
       </div>
+      <div className="border-t border-border bg-navy px-4 py-1.5 text-white sm:hidden">
+        <Link href={deliverHref} className="inline-flex items-center gap-2">
+          <DeliverPin light />
+          <span className="text-[11px] text-white/70">Deliver to</span>
+          <span className="text-sm font-bold">{postcode ?? "Add a postcode"}</span>
+        </Link>
+      </div>
       <form action="/search" className="border-t border-border px-4 py-2 md:hidden">
         <input
           name="q"
@@ -117,6 +146,15 @@ export async function StorefrontHeader() {
         />
       </form>
     </header>
+  );
+}
+
+function DeliverPin({ light = false }: { light?: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={light ? "text-gold" : "text-navy"}>
+      <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="10" r="2.2" fill="currentColor" />
+    </svg>
   );
 }
 

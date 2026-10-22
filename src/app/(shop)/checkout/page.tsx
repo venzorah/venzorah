@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { checkoutAction } from "@/app/actions/marketplace";
+import { CheckoutDelivery, type SavedDeliveryAddress } from "@/components/checkout-delivery";
 import { SignInToCheckout } from "@/components/sign-in-to-checkout";
-import { ActionForm } from "@/components/forms";
-import { UkAddressFields } from "@/components/uk-address-fields";
-import { Button, Field, Input, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { checkoutActor } from "@/lib/checkout-actor";
 import { formatGbp } from "@/lib/money";
 import { storeCartLines } from "@/lib/store-checkout";
@@ -18,14 +16,19 @@ export default async function CheckoutPage() {
 
   const lines = await storeCartLines(user);
   const subtotal = lines.reduce((sum, line) => sum + line.unitPence * line.quantity, 0);
-  let defaultAddress: { line1: string; city: string; region: string; postcode: string } | null = null;
+  let addresses: SavedDeliveryAddress[] = [];
   if (!user.id.startsWith("demo-")) {
     try {
-      const addresses = await prisma.address.findMany({ where: { userId: user.id } });
-      const found = addresses.find((address) => address.isDefault) ?? addresses[0];
-      if (found) {
-        defaultAddress = { line1: found.line1, city: found.city, region: found.region ?? "", postcode: found.postcode };
-      }
+      const saved = await prisma.address.findMany({ where: { userId: user.id }, orderBy: { isDefault: "desc" } });
+      addresses = saved.map((address) => ({
+        id: address.id,
+        label: address.label,
+        line1: address.line1,
+        city: address.city,
+        region: address.region ?? "",
+        postcode: address.postcode,
+        isDefault: address.isDefault,
+      }));
     } catch (error) {
       console.error("[checkout] addresses unavailable", error instanceof Error ? error.message : error);
     }
@@ -58,27 +61,7 @@ export default async function CheckoutPage() {
               Each store ships separately. The payment step shows that store&apos;s delivery options. Shipping is not estimated in the browser.
             </p>
           </div>
-          <ActionForm action={checkoutAction} className="grid gap-3 rounded-2xl border border-border bg-card p-4">
-            <Field label="Full name">
-              <Input name="shippingName" defaultValue={user.name} required autoComplete="name" />
-            </Field>
-            <UkAddressFields
-              line1Name="shippingLine1"
-              cityName="shippingCity"
-              regionName="shippingRegion"
-              postcodeName="shippingPostcode"
-              defaultLine1={defaultAddress?.line1}
-              defaultCity={defaultAddress?.city}
-              defaultRegion={defaultAddress?.region}
-              defaultPostcode={defaultAddress?.postcode}
-            />
-            <Field label="Coupon (optional)">
-              <Input name="coupon" />
-            </Field>
-            <Button type="submit" className="rounded-full">
-              Continue to demo Stripe
-            </Button>
-          </ActionForm>
+          <CheckoutDelivery buyerName={user.name} addresses={addresses} />
         </>
       )}
     </main>
