@@ -59,9 +59,15 @@ export async function StorefrontHeader() {
           />
         </form>
         <nav className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <Link className="tap-target hidden items-center px-2 sm:inline-flex" href="/sell-on-venzorah">
-            Sell on Venzorah
-          </Link>
+          {user?.vendorId || user?.roles.includes(ROLE_KEYS.VENDOR) ? (
+            <Link className="tap-target hidden items-center px-2 sm:inline-flex" href="/vendor">
+              Dashboard
+            </Link>
+          ) : (
+            <Link className="tap-target hidden items-center px-2 sm:inline-flex" href="/sell-on-venzorah">
+              Sell on Venzorah
+            </Link>
+          )}
           <Link className="tap-target hidden items-center px-2 sm:inline-flex" href="/products">
             Shop
           </Link>
@@ -73,11 +79,6 @@ export async function StorefrontHeader() {
               {user.roles.includes(ROLE_KEYS.ADMIN) ? (
                 <Link className="tap-target hidden items-center px-2 sm:inline-flex" href="/admin">
                   Admin
-                </Link>
-              ) : null}
-              {user.vendorId ? (
-                <Link className="tap-target hidden items-center px-2 sm:inline-flex" href="/vendor">
-                  Vendor
                 </Link>
               ) : null}
               <Link className="tap-target inline-flex items-center rounded-full bg-navy px-3 py-2 text-white" href="/account">

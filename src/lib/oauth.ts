@@ -284,8 +284,8 @@ export async function finishOAuth(provider: OAuthProvider, code: string | null, 
     console.error("[cart] guest basket was not merged", error instanceof Error ? error.message : error);
   }
   const next = await takeAuthReturn();
-  if (next) redirect(next);
   const keys = user.roles.map((r) => r.role.key);
+  if (portal !== "seller" && next) redirect(next);
   if (portal === "seller") {
     if (keys.includes(ROLE_KEYS.VENDOR) || keys.includes(ROLE_KEYS.ADMIN)) redirect("/vendor");
     redirect("/sell-on-venzorah");

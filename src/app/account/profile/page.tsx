@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { ROLE_KEYS } from "@/lib/permissions";
 import { updateProfile } from "@/app/actions/marketplace";
 import { logoutAction } from "@/app/actions/auth";
 import { BrandMark } from "@/components/brand";
@@ -24,6 +25,7 @@ export default async function ProfilePage() {
     console.error("[profile] account record unavailable", error instanceof Error ? error.message : error);
   }
   const initial = profile.name.trim().charAt(0).toUpperCase() || "V";
+  const vendor = Boolean(session.vendorId) || session.roles.includes(ROLE_KEYS.VENDOR);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -34,7 +36,7 @@ export default async function ProfilePage() {
             <Link href="/products" className="text-ink">
               Continue shopping
             </Link>
-            <Link href="/account" className="rounded-full bg-navy px-3 py-1.5 text-white">
+            <Link href={vendor ? "/vendor" : "/account"} className="rounded-full bg-navy px-3 py-1.5 text-white">
               Dashboard
             </Link>
           </div>

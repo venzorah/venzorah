@@ -158,7 +158,7 @@ export async function loginAction(formData: FormData) {
     await createSession(user.id, days);
     await adoptGuestBasket(user.id);
     await clearAuthReturn();
-    redirect(next ?? sessionDestination(keys, portal));
+    redirect(portal === "seller" ? sessionDestination(keys, portal) : (next ?? sessionDestination(keys, portal)));
   } catch (error) {
     unstable_rethrow(error);
     if (!isDatabaseFailure(error)) {
@@ -174,7 +174,7 @@ export async function loginAction(formData: FormData) {
   }
   await createDemoSession(demo.id, days);
   await clearAuthReturn();
-  redirect(next ?? sessionDestination(demo.roles, portal));
+  redirect(portal === "seller" ? sessionDestination(demo.roles, portal) : (next ?? sessionDestination(demo.roles, portal)));
 }
 
 export async function logoutAction() {

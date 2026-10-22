@@ -141,7 +141,7 @@ function AccountPanel({ user, onClose }: { user: MobileNavUser; onClose: () => v
                 onClick={onClose}
                 className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-ink hover:bg-surface"
               >
-                {user.vendor ? "Vendor dashboard" : "Sell on Venzorah"}
+                {user.vendor ? "Dashboard" : "Sell on Venzorah"}
               </Link>
             </li>
           </ul>
@@ -232,7 +232,7 @@ function MenuPanel({
                 onClick={onClose}
                 className="block py-2 text-sm font-semibold text-ink"
               >
-                {user?.vendor ? "Vendor dashboard" : "Sell on Venzorah"}
+                {user?.vendor ? "Dashboard" : "Sell on Venzorah"}
               </Link>
             </li>
             <li>
