@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<title>Venzorah — Launch readiness, 22 October 2026</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm; }
+  @page :first { margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Calibri, "Helvetica Neue", Arial, sans-serif;
+    color: #1c2433;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    background: #fff;
+  }
+  h1, h2, h3, p { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+
+  .cover {
+    page-break-after: always;
+    height: 297mm;
+    background: #00133d;
+    color: #fff;
+    padding: 22mm 18mm 16mm;
+    position: relative;
+  }
+  .cover-rule { height: 6px; width: 72px; background: #f7b506; margin-bottom: 18mm; }
+  .eyebrow {
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-size: 11pt;
+    font-weight: 700;
+    color: #f7b506;
+  }
+  .cover h1 {
+    margin-top: 8mm;
+    font-size: 42pt;
+    line-height: 0.95;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+    max-width: 150mm;
+  }
+  .deck {
+    margin-top: 10mm;
+    max-width: 145mm;
+    font-size: 14pt;
+    line-height: 1.4;
+    color: rgba(255,255,255,0.88);
+  }
+  .cover-meta {
+    margin-top: 14mm;
+    font-size: 11pt;
+    color: rgba(255,255,255,0.72);
+  }
+  .facts {
+    margin-top: 22mm;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+  .fact {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 5mm 5mm 4.5mm;
+  }
+  .fact span {
+    display: block;
+    font-size: 8.5pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #f7b506;
+    font-weight: 700;
+  }
+  .fact strong {
+    display: block;
+    margin-top: 1.5mm;
+    font-size: 12pt;
+    font-weight: 650;
+  }
+  .cover-foot {
+    position: absolute;
+    left: 18mm;
+    right: 18mm;
+    bottom: 14mm;
+    border-top: 1px solid rgba(255,255,255,0.16);
+    padding-top: 4mm;
+    font-size: 9pt;
+    color: rgba(255,255,255,0.6);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  h2 {
+    font-size: 16pt;
+    color: #002168;
+    letter-spacing: -0.02em;
+    margin: 0 0 3mm;
+    padding-bottom: 2mm;
+    border-bottom: 2.5px solid #002168;
+  }
+  h3 {
+    font-size: 11.5pt;
+    color: #002168;
+    margin: 4.5mm 0 1.5mm;
+  }
+  .lead { color: #3d4656; margin-bottom: 4mm; }
+  .section { page-break-inside: auto; }
+  .break { page-break-before: always; }
+  p + p { margin-top: 2mm; }
+
+  .kicker-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 5mm;
+    font-size: 8.5pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5b6475;
+    font-weight: 700;
+  }
+  .kicker-line b { color: #002168; font-weight: 750; }
+
+  ul { margin: 1mm 0 2mm 4.5mm; padding: 0; }
+  li { margin: 0.6mm 0; }
+  li strong { color: #002168; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  .card {
+    border: 1px solid #d9e0ee;
+    border-radius: 8px;
+    padding: 3.5mm 4mm;
+    background: #fff;
+    page-break-inside: avoid;
+  }
+  .card h3 { margin-top: 0; }
+  .card.wash { background: #f5f7fb; }
+
+  .pill {
+    display: inline-block;
+    font-size: 8pt;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 99px;
+    padding: 0.6mm 2.4mm 0.4mm;
+    margin-right: 1.5mm;
+  }
+  .done { background: #e5f6ee; color: #0f7a4b; }
+  .partial { background: #fff4e5; color: #c05600; }
+  .required { background: #fdecec; color: #c62828; }
+  .later { background: #e8eef8; color: #1565c0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; page-break-inside: avoid; }
+  table.flow { page-break-inside: auto; }
+  table.flow tr { page-break-inside: avoid; }
+  table.compact th, table.compact td { padding: 1.7mm 2.2mm; font-size: 9.5pt; }
+  th, td { text-align: left; vertical-align: top; padding: 2.2mm 2.4mm; border-bottom: 1px solid #d9e0ee; }
+  th {
+    font-size: 8pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5b6475;
+    background: #f5f7fb;
+    border-bottom: 1px solid #002168;
+  }
+  td.num { width: 12mm; font-weight: 750; color: #002168; }
+  .note {
+    margin-top: 3mm;
+    background: #f5f7fb;
+    border-left: 3px solid #f7b506;
+    padding: 3mm 4mm;
+    page-break-inside: avoid;
+  }
+  .note strong { color: #002168; }
+  ol.steps { margin: 2mm 0 0 5mm; padding: 0; }
+  ol.steps li { margin: 1.4mm 0; }
+  .footer-note { margin-top: 6mm; font-size: 8.5pt; color: #5b6475; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="cover-rule"></div>
+  <p class="eyebrow">Venzorah</p>
+  <h1>Launch readiness</h1>
+  <p class="deck">What has been built, and what must be finished before the marketplace can take real orders from buyers and pay real sellers.</p>
+  <p class="cover-meta">22 October 2026 &nbsp;·&nbsp; UK-first marketplace for African products</p>
+  <div class="facts">
+    <div class="fact"><span>Application</span><strong>Built in this project</strong></div>
+    <div class="fact"><span>Public address</span><strong>venzorah.co.uk</strong></div>
+    <div class="fact"><span>Money today</span><strong>Demonstration checkout only</strong></div>
+    <div class="fact"><span>Open for trade</span><strong>After the launch list below</strong></div>
+  </div>
+  <div class="cover-foot">
+    <span>Status document for the launch team</span>
+    <span>Confidential to the project</span>
+  </div>
+</section>
+
+<section class="section">
+  <div class="kicker-line"><b>Venzorah</b><span>Launch readiness · 22 October 2026</span></div>
+  <h2>Where the project stands</h2>
+  <p class="lead">Venzorah is one Next.js application. The shop, the customer account, the vendor dashboard, the admin desk and the database rules all live in this repository. There is no separate backend still to be written.</p>
+  <p>The site is deployed and the domain answers. A visitor can browse, create an account, and walk through checkout. That checkout does not charge a real card. Vendor earnings are calculated and stored, and an administrator can approve a withdrawal on the ledger. The money is not sent to a bank.</p>
+
+  <div class="grid-2" style="margin-top:5mm">
+    <div class="card wash">
+      <h3>Safe to say today</h3>
+      <ul>
+        <li>The product can be demonstrated to partners.</li>
+        <li>Staff, buyers and vendors each have a working area.</li>
+        <li>Prices, commission and shipping are calculated on the server in pence.</li>
+        <li>The rules for a multi-vendor order are written and tested.</li>
+      </ul>
+    </div>
+    <div class="card wash">
+      <h3>Hold the public launch</h3>
+      <ul>
+        <li>No live card charge and no bank payout.</li>
+        <li>The production database still has to be confirmed on Vercel.</li>
+        <li>Email is recorded, and it is not delivered.</li>
+        <li>Terms, privacy and returns are still placeholder text.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>How to read the rest of this document</h3>
+  <p><span class="pill done">Built</span> works in the application as described.</p>
+  <p style="margin-top:1.5mm"><span class="pill partial">Partial</span> the screen or the rule exists, and a live service, a decision, or a production setting is still required.</p>
+  <p style="margin-top:1.5mm"><span class="pill required">Required</span> do this before inviting the public to buy and sell.</p>
+  <p style="margin-top:1.5mm"><span class="pill later">Later</span> useful after the first public launch. It does not block the first real orders.</p>
+</section>
+
+<section class="section break">
+  <div class="kicker-line"><b>Venzorah</b><span>Stack for reference</span></div>
+  <h2>Stack used to build the app</h2>
+  <p class="lead">One Next.js project holds the shop, the three dashboards and the server. Versions are those declared in the project on 22 October 2026.</p>
+  <table class="compact">
+    <thead><tr><th>Layer</th><th>What we use</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Application</td><td>Next.js 16.4 App Router, React 19.3, TypeScript 5</td><td>Pages and server code in the same project. Dashboards call that server directly.</td></tr>
+      <tr><td>Interface</td><td>Tailwind CSS 4, Plus Jakarta Sans</td><td>Layout and brand colours in the global stylesheet. Light theme by default.</td></tr>
+      <tr><td>Database</td><td>PostgreSQL 16, Prisma ORM 6.19</td><td>Users, catalogue, orders, plans, payments and the seller ledger. Docker on a local machine.</td></tr>
+      <tr><td>Accounts</td><td>Session cookie, bcrypt, server-side roles</td><td>Email and password sign-in. Google, Facebook and Apple wait for their own keys.</td></tr>
+      <tr><td>Payments</td><td>Stripe SDK 23</td><td>Webhooks are ready. Checkout today is the in-app demonstration card form.</td></tr>
+      <tr><td>UK address</td><td>postcodes.io</td><td>Live postcode lookup, and search for a UK city or region.</td></tr>
+      <tr><td>Seller checks</td><td>Sylmera Identity</td><td>Verification screen. It runs when an API key is set.</td></tr>
+      <tr><td>Hosting</td><td>Vercel, venzorah.co.uk</td><td>Builds the app and, when configured, prepares the remote database. Installable as a PWA.</td></tr>
+      <tr><td>Checks</td><td>Vitest 5, ESLint 9, Zod 4</td><td>Tests for money, settlement, plans, sign-in routing and card expiry.</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <strong>Supporting libraries.</strong> jose for signed tokens, date-fns for dates, nanoid for short ids, and next-themes for light and dark. Node 22 is the type target. There is no separate mobile app.
+  </div>
+</section>
+
+<section class="section break">
+  <div class="kicker-line"><b>Venzorah</b><span>What has been built</span></div>
+  <h2>1. Shoppers</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>What a person can do</th></tr></thead>
+    <tbody>
+      <tr><td>Home, categories, search</td><td><span class="pill done">Built</span></td><td>Browse African food, fashion, beauty, home and the other catalogue groups. Categories use images. Products sit in rows on the home page.</td></tr>
+      <tr><td>Product and store</td><td><span class="pill done">Built</span></td><td>Open a product, see its pictures, and follow the store name to that seller’s other products.</td></tr>
+      <tr><td>Basket</td><td><span class="pill done">Built</span></td><td>Add items without an account. After Add to cart, choose to continue shopping or go to checkout. The prompt closes when checkout starts.</td></tr>
+      <tr><td>Checkout gate</td><td><span class="pill done">Built</span></td><td>A guest is asked to sign in or create an account, then returns to checkout to finish the order.</td></tr>
+      <tr><td>UK address</td><td><span class="pill done">Built</span></td><td>Search a city or a UK region, and look up a real postcode. The city and region fill in from the address.</td></tr>
+      <tr><td>Account</td><td><span class="pill done">Built</span></td><td>A profile for picture, name, mobile and email, separate from the orders dashboard. Wishlist, addresses, support and reviews are included.</td></tr>
+      <tr><td>Phone layout</td><td><span class="pill done">Built</span></td><td>A bottom menu for Store, Search, Account, Wishlist and Menu. The site can be installed as an app from the browser.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. Sellers</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>What a seller can do</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard</td><td><span class="pill done">Built</span></td><td>A vendor who signs in through the seller entrance lands on the vendor dashboard. Their profile shows Dashboard in place of Sell on Venzorah.</td></tr>
+      <tr><td>Plans</td><td><span class="pill partial">Partial</span></td><td>The first listing asks for an explicit plan, including Free. Upgrade and downgrade are available. A downgrade keeps the oldest live listings and moves the extras to draft. Staff can add and retire plans. Charging the plan fee is still outstanding.</td></tr>
+      <tr><td>Catalogue</td><td><span class="pill done">Built</span></td><td>Products, pictures, inventory, a public store page, promotions and reviews.</td></tr>
+      <tr><td>Delivery rates</td><td><span class="pill partial">Partial</span></td><td>Each seller sets their own methods and prices. Checkout uses those server prices. Live quotes from Royal Mail, Evri or DPD are not connected.</td></tr>
+      <tr><td>Verification</td><td><span class="pill partial">Partial</span></td><td>The seller verification screen is ready for Sylmera Identity, including a UK company check. It stays idle until an API key is set.</td></tr>
+      <tr><td>Earnings</td><td><span class="pill partial">Partial</span></td><td>The seller can see product proceeds, shipping kept, commission, money still in the waiting period, and money available. A withdrawal is a request. It is not a bank transfer.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section break">
+  <div class="kicker-line"><b>Venzorah</b><span>What has been built</span></div>
+  <h2>3. Staff desk</h2>
+  <p class="lead">Staff sign in at the admin entrance. Permissions are checked on the server, so hiding a button is not the only control.</p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>People and catalogue</h3>
+      <ul>
+        <li>Customers and vendors, including a vendor record.</li>
+        <li>Products awaiting review, and categories.</li>
+        <li>Support tickets and in-app notifications.</li>
+        <li>Roles, permission overrides and an audit log.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Money and content</h3>
+      <ul>
+        <li>Orders split by seller, with product, shipping, commission and the seller’s amount.</li>
+        <li>Plan editor, payout review, and a CSV of allocations.</li>
+        <li>Disputes that hold only the seller involved.</li>
+        <li>CMS pages, banners, reminders and platform settings.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>4. How an order is divided</h2>
+  <p class="lead">These rules are in the application and covered by tests. They apply when a payment is confirmed. They do not move money at a bank.</p>
+  <ul>
+    <li><strong>One checkout, one order per seller.</strong> A basket with two sellers becomes a parent order and a sub-order for each seller.</li>
+    <li><strong>Shipping stays with the seller who charged it.</strong> The platform does not take a share of the delivery fee.</li>
+    <li><strong>Commission is on goods only.</strong> The seeded Free plan is 5% of eligible product sales, after any discount share. An active paid plan is 0% while it covers the sale. Seeded paid prices are £35 a month, £180 for six months and £336 a year. Staff can change plans.</li>
+    <li><strong>Free plan listings.</strong> The seeded Free plan allows 5 published listings. Paid plans are unlimited unless staff set a cap.</li>
+    <li><strong>Seven-day wait.</strong> Each sub-order becomes available after seven days, unless that seller has an open dispute. The wait is a setting, and a scheduled job has to run for the release to happen.</li>
+    <li><strong>Refunds.</strong> A product refund reverses the commission on that product amount. Shipping is refunded only when staff refund shipping on purpose. A dispute refund does not automatically refund the delivery fee.</li>
+    <li><strong>The books balance.</strong> Amounts are whole pence. A checkout that cannot be reconciled is refused. Paying the same order twice does not write a second payment.</li>
+  </ul>
+  <div class="note">
+    <strong>Worked example, already in the tests.</strong> Seller A sells £30 of goods and charges £5 delivery on the Free plan: commission £1.50, seller £33.50. Seller B sells £20 and charges £3.50 on a paid plan: commission £0, seller £23.50. The buyer pays £58.50. Venzorah’s commission is £1.50. The £8.50 of delivery is not platform income.
+  </div>
+</section>
+
+<section class="section break">
+  <div class="kicker-line"><b>Venzorah</b><span>Before launch</span></div>
+  <h2>5. Required before the public can trade</h2>
+  <p class="lead">Do these in roughly this order. A public announcement before they are done would take orders the platform cannot collect or pay out.</p>
+  <table>
+    <thead><tr><th></th><th>Work</th><th>Why it blocks launch</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="num">01</td>
+        <td><span class="pill required">Required</span><br><strong>Production database</strong></td>
+        <td>Set a remote PostgreSQL address on Vercel for Production and Preview, and include it in the build. Use the direct address, not a pooled host. A localhost address is ignored on purpose. Without this, new accounts and real orders on the live site have nowhere reliable to live. Then run one signup and one order on that database and confirm they are still there after a new deploy.</td>
+      </tr>
+      <tr>
+        <td class="num">02</td>
+        <td><span class="pill required">Required</span><br><strong>Real card payments</strong></td>
+        <td>Checkout currently accepts the public test card 4242 4242 4242 4242 inside Venzorah’s own form. No charge is made. Stripe keys are empty, and the Stripe webhook answers that it is not configured. Replace that form with Stripe Checkout or Stripe Elements so the card number never reaches Venzorah. Point the webhook at the live site and confirm a paid order only after Stripe says it is paid.</td>
+      </tr>
+      <tr>
+        <td class="num">03</td>
+        <td><span class="pill required">Required</span><br><strong>Paid seller plans</strong></td>
+        <td>Choosing Monthly, 6-Month or Annual records the plan. It does not take the fee. A seller must be charged, through Stripe or another provider, before the 0% commission rate applies in production.</td>
+      </tr>
+      <tr>
+        <td class="num">04</td>
+        <td><span class="pill required">Required</span><br><strong>How sellers get paid</strong></td>
+        <td>Withdrawals are requests on an internal ledger. Staff can approve them. There is no Stripe Connect account and no automatic transfer to a seller’s bank. Choose the payout method, write it into the seller terms, and rehearse one payout from approval to money leaving Venzorah.</td>
+      </tr>
+      <tr>
+        <td class="num">05</td>
+        <td><span class="pill required">Required</span><br><strong>The daily job</strong></td>
+        <td>Earnings leave the seven-day wait only when <strong>POST /api/cron/jobs</strong> runs. Subscriptions expire and reminders run in the same job. Nothing in the Vercel project calls it yet. Put it on a daily schedule and set a real <strong>CRON_SECRET</strong>. If that secret is left empty, the job does not check who is calling it.</td>
+      </tr>
+      <tr>
+        <td class="num">06</td>
+        <td><span class="pill required">Required</span><br><strong>Email that arrives</strong></td>
+        <td>Password reset, order mail and seller notices are written to the database. They are not sent. Filling in an SMTP host still only marks the message as queued. Connect a real sender and receive one reset email, one order email and one seller email in a real inbox.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section break">
+  <div class="kicker-line"><b>Venzorah</b><span>Before launch</span></div>
+  <h2>5. Required before the public can trade</h2>
+  <table>
+    <thead><tr><th></th><th>Work</th><th>Why it blocks launch</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="num">07</td>
+        <td><span class="pill required">Required</span><br><strong>Legal text and VAT</strong></td>
+        <td>Terms, privacy, returns, subscription terms and the contact page are short placeholders. The contact line still names a development address. A solicitor needs to review UK consumer rights, marketplace duties, seller contracts, subscriptions and refunds. Finance needs to decide VAT registration, whether delivery is taxed, and what appears on a receipt. The seven-day wait is an internal rule. It is escrow only if the payment provider and the contracts say so.</td>
+      </tr>
+      <tr>
+        <td class="num">08</td>
+        <td><span class="pill required">Required</span><br><strong>Close the demonstration doors</strong></td>
+        <td>Demo passwords are in the project readme. A failed database lookup can still accept a demo session. The shop can fall back to a built-in catalogue. Turn that off on the public site, change every staff password, and keep the test card form off once Stripe is live.</td>
+      </tr>
+      <tr>
+        <td class="num">09</td>
+        <td><span class="pill required">Required</span><br><strong>File storage</strong></td>
+        <td>Product photos are saved on the server’s public disk. Identity documents are saved on a private folder on the same machine. Vercel does not keep that disk between deployments. Move public images to object storage and identity files to a private bucket before sellers upload real documents.</td>
+      </tr>
+      <tr>
+        <td class="num">10</td>
+        <td><span class="pill required">Required</span><br><strong>One dress rehearsal</strong></td>
+        <td>On the production database, with test mode still on at the payment provider: a new buyer pays, the seller sees only their sub-order, the daily job releases the earning after the wait, staff approve a payout, and a refund reverses commission without refunding delivery by accident. Launch after that rehearsal passes.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>6. Finish these for a convincing public opening</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>What is left</th></tr></thead>
+    <tbody>
+      <tr><td>Seller identity checks</td><td><span class="pill partial">Partial</span></td><td>Add Sylmera keys, or another provider, and complete one individual check and one UK company check.</td></tr>
+      <tr><td>Real catalogue</td><td><span class="pill partial">Partial</span></td><td>Replace demonstration goods with sellers, prices and photographs you are willing to sell.</td></tr>
+      <tr><td>Support and social</td><td><span class="pill partial">Partial</span></td><td>Use a real support address. Point Facebook, X and Instagram at Venzorah’s own profiles. The country names in the footer open the general product list.</td></tr>
+      <tr><td>App store badges</td><td><span class="pill later">Later</span></td><td>The App Store and Google Play badges open the install page for the website. There is no native app yet. iPhone users add the site from the Share menu.</td></tr>
+      <tr><td>Social sign-in</td><td><span class="pill later">Later</span></td><td>Google, Facebook and Apple can be switched on with their own app credentials. Email and password already work.</td></tr>
+      <tr><td>Carriers and push</td><td><span class="pill later">Later</span></td><td>Label printing, live carrier prices and browser push can follow the first launch. In-app notices already exist.</td></tr>
+      <tr><td>Care of the system</td><td><span class="pill required">Required</span></td><td>Turn on database backups and prove a restore. Watch errors on Vercel. Limit repeated sign-in attempts. Keep secrets out of the repository.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section break">
+  <div class="kicker-line"><b>Venzorah</b><span>Launch sequence</span></div>
+  <h2>7. A practical order of work</h2>
+  <ol class="steps">
+    <li><strong>Database and secrets.</strong> Remote Postgres, a new staff password, a cron secret, and the public site address.</li>
+    <li><strong>Stripe for buyers.</strong> Live or test keys, hosted card entry, and a webhook that marks the order paid.</li>
+    <li><strong>Stripe for seller plans.</strong> The fee is collected before the 0% commission applies.</li>
+    <li><strong>Payout decision.</strong> Bank transfer by staff, or a connected-account product. Say which one in the seller agreement.</li>
+    <li><strong>Email.</strong> A sender that delivers, tested with a real inbox.</li>
+    <li><strong>Daily job.</strong> Earnings, expired plans and reminders run every day.</li>
+    <li><strong>Storage.</strong> Photos and identity documents survive a new deploy and stay private where they must.</li>
+    <li><strong>Legal and VAT.</strong> Replace the placeholder pages and confirm the receipt.</li>
+    <li><strong>Identity checks and the first real sellers.</strong></li>
+    <li><strong>Switch off demonstration sign-in, the test card and the fallback catalogue.</strong></li>
+    <li><strong>Dress rehearsal, then open.</strong></li>
+  </ol>
+
+  <h2>8. What “launched” should mean</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Ready to demonstrate</h3>
+      <p>This is the project today. Partners can click through the shop, the three dashboards and a demonstration payment on venzorah.co.uk, once the database is attached. Say that it is a demonstration.</p>
+    </div>
+    <div class="card">
+      <h3>Ready to trade</h3>
+      <p>A stranger can pay, a seller is checked, the fee and the commission match the contract, the earning is released by the daily job, and the seller can be paid. Items 01 to 10 in section 5 are the gate.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>What this document is.</strong> It describes the application as it stands on 22 October 2026. It is a delivery and launch list. It is not a legal opinion, a VAT opinion, or a payment-provider contract. Prices of plans can be changed by staff. The commission and shipping rules above are the rules in the code.
+  </div>
+  <p class="footer-note">Venzorah · UK-first marketplace for African products · Launch readiness · 22 October 2026</p>
+</section>
+
+</body>
+</html>
